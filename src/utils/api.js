@@ -1,3 +1,5 @@
+// ─── API: Google Sheets через Apps Script ────────────────────────────────────
+
 const SHEETS_URL = import.meta.env.VITE_SHEETS_URL
 
 /**
@@ -7,7 +9,7 @@ const SHEETS_URL = import.meta.env.VITE_SHEETS_URL
 export async function saveAssessment(payload) {
   const res = await fetch(`${SHEETS_URL}?action=save`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body:    JSON.stringify(payload),
   })
   const json = await res.json()
