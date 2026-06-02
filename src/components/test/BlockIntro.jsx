@@ -2,7 +2,7 @@
 // Поддерживает обе модели:
 //   - classic  (techник): 3 блока, билингвальный RU/KZ
 //   - extended (OD): 5 блоков, только русский
-// Брендинг GlassGo: синий primary, асимметричная плашка на кнопке.
+// Брендинг GlassGo: светлая страница, синий primary, асимметричная плашка.
 
 import { B, SHAPE } from '../../utils/brand.js'
 
@@ -27,7 +27,7 @@ const T = {
     timer_extended_val: '22 минуты',
     rulesTtl: 'Правила тестирования',
     rules_classic:  'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру. В Блоке 3 внимательно изучите изображение перед тем, как отмечать нарушения.',
-    rules_extended: 'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру (22 мин). В блоках 3-5 ваши ответы оцениваются по существу — пишите развёрнуто и конкретно. Прогресс сохраняется автоматически.',
+    rules_extended: 'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру на весь блок (22 мин на 20 вопросов). В блоках 3-5 ваши ответы оцениваются по существу — пишите развёрнуто и конкретно. Прогресс сохраняется автоматически.',
     nameLabel:'Имя и фамилия кандидата:',
     namePh:   'Иванов Иван',
     start:    'Начать тест →',
@@ -64,13 +64,10 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
   const t = T[lang] || T.ru
   const testType = role.testType || 'classic'
 
-  // Универсальная функция получения количества вопросов в блоке —
-  // работает и для classic (COGNITIVE), и для extended (COGNITIVE_BANK)
   function getQuestionCount(blockKey) {
     const q = role.questions
     if (blockKey === 'cognitive') {
       if (q.COGNITIVE_BANK && q.COGNITIVE_CONFIG) {
-        // Для extended: суммируем квоты
         const quotas = q.COGNITIVE_CONFIG.quotas
         let total = 0
         Object.entries(quotas).forEach(([cat, count]) => {
@@ -96,19 +93,18 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
     onStart()
   }
 
-  // Список блоков для отображения
   const blocks = testType === 'extended'
     ? [
-        { n: getQuestionCount('cognitive'),     l: t.b_cog,    label: 'вопросов' },
-        { n: getQuestionCount('disc'),          l: t.b_disc,   label: 'групп'    },
-        { n: getQuestionCount('visual'),        l: t.b_vis,    label: 'сцен'     },
-        { n: getQuestionCount('structuring'),   l: t.b_struct, label: 'полей'    },
-        { n: getQuestionCount('communication'), l: t.b_comm,   label: 'кейсов'   },
+        { n: getQuestionCount('cognitive'),     l: t.b_cog    },
+        { n: getQuestionCount('disc'),          l: t.b_disc   },
+        { n: getQuestionCount('visual'),        l: t.b_vis    },
+        { n: getQuestionCount('structuring'),   l: t.b_struct },
+        { n: getQuestionCount('communication'), l: t.b_comm   },
       ]
     : [
-        { n: getQuestionCount('cognitive'), l: t.b_cog,  label: 'вопросов' },
-        { n: getQuestionCount('disc'),      l: t.b_disc, label: 'групп'    },
-        { n: getQuestionCount('visual'),    l: t.b_vis,  label: 'сцен'     },
+        { n: getQuestionCount('cognitive'), l: t.b_cog  },
+        { n: getQuestionCount('disc'),      l: t.b_disc },
+        { n: getQuestionCount('visual'),    l: t.b_vis  },
       ]
 
   const sub = testType === 'extended' ? t.sub_extended : t.sub_classic
@@ -117,135 +113,120 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
   const rules    = testType === 'extended' ? t.rules_extended     : t.rules_classic
 
   return (
-    <div style={{ background: B.white, border: '1px solid ' + B.border, borderTop: 'none' }}>
-      {/* Hero — светлая шапка под GlassGo */}
+    <div style={{
+      maxWidth: 720,
+      margin: '0 auto',
+      padding: '2.5rem 1.5rem 2rem',
+    }}>
+      {/* Бейдж сверху */}
       <div style={{
-        background: B.dark,
-        padding: '2rem 1.5rem',
+        fontSize: 11,
+        color: B.muted,
+        letterSpacing: '.12em',
+        textTransform: 'uppercase',
+        marginBottom: 14,
+        fontWeight: 600,
+      }}>
+        {t.badge}
+      </div>
+
+      {/* Заголовок + плашка с названием роли */}
+      <h1 style={{
+        fontSize: 30, fontWeight: 700, color: B.text,
+        lineHeight: 1.25, margin: '0 0 14px',
+      }}>
+        {t.wlc}
+      </h1>
+      <div style={{ marginBottom: 18 }}>
+        <span style={{
+          display: 'inline-block',
+          color: B.white, background: B.primary,
+          padding: '6px 16px',
+          borderRadius: SHAPE.asymmetricSm,
+          fontSize: 18, fontWeight: 600,
+        }}>
+          {role.label[lang] || role.label.ru}
+        </span>
+      </div>
+
+      {/* Подзаголовок */}
+      <p style={{
+        fontSize: 14, color: B.muted, lineHeight: 1.6,
+        marginBottom: 32, marginTop: 0,
+      }}>
+        {sub}
+      </p>
+
+      {/* Блоки — карточки с цифрами */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${blocks.length}, 1fr)`,
+        gap: 10,
+        marginBottom: 24,
+      }}>
+        {blocks.map((item, i) => (
+          <div key={i} style={{
+            background: B.white,
+            border: '1px solid ' + B.border,
+            padding: '1rem .5rem',
+            textAlign: 'center',
+            borderRadius: SHAPE.card,
+          }}>
+            <div style={{
+              fontSize: 26, fontWeight: 700,
+              color: B.primary, marginBottom: 6,
+            }}>{item.n}</div>
+            <div style={{
+              fontSize: 11, color: B.muted,
+              lineHeight: 1.4, whiteSpace: 'pre-line',
+            }}>{item.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Информация о времени */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: testType === 'extended' ? 'repeat(2,1fr)' : 'repeat(3,1fr)',
+        gap: 10,
+        marginBottom: 24,
       }}>
         <div style={{
-          fontSize: 10, color: 'rgba(255,255,255,.45)',
-          letterSpacing: '.09em', textTransform: 'uppercase', marginBottom: 8,
-        }}>
-          {t.badge}
-        </div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: B.white, lineHeight: 1.2, marginBottom: 4 }}>
-          {t.wlc}<br />
-          <span style={{ color: B.primary, background: B.white, padding: '2px 10px', borderRadius: SHAPE.asymmetricSm, fontSize: 22 }}>
-            {role.label[lang] || role.label.ru}
-          </span>
-        </div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 10 }}>{sub}</div>
-      </div>
-
-      <div style={{ padding: '1.5rem 1.25rem' }}>
-        {/* Блоки */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${blocks.length}, 1fr)`,
-          gap: 8,
-          marginBottom: '1.25rem',
-        }}>
-          {blocks.map((item, i) => (
-            <div key={i} style={{
-              background: B.light,
-              border: '1px solid ' + B.border,
-              padding: '1rem .5rem',
-              textAlign: 'center',
-              borderRadius: SHAPE.card,
-            }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: B.primary, marginBottom: 4 }}>{item.n}</div>
-              <div style={{ fontSize: 11, color: B.muted, lineHeight: 1.4, whiteSpace: 'pre-line' }}>{item.l}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Информация о времени */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: testType === 'extended' ? 'repeat(2,1fr)' : 'repeat(3,1fr)',
-          gap: 8,
-          marginBottom: '1.25rem',
-        }}>
-          <div style={{
-            background: B.light, border: '1px solid ' + B.border,
-            borderTop: '3px solid ' + B.primary, padding: '.75rem 1rem',
-            borderRadius: SHAPE.card,
-          }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em', color: B.muted, marginBottom: 3 }}>
-              {testType === 'extended' ? t.time_extended : t.time_classic}
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: B.text }}>{timeVal}</div>
-          </div>
-          <div style={{
-            background: B.light, border: '1px solid ' + B.border,
-            borderTop: '3px solid ' + B.primary, padding: '.75rem 1rem',
-            borderRadius: SHAPE.card,
-          }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em', color: B.muted, marginBottom: 3 }}>{t.timer}</div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: B.text }}>{timerVal}</div>
-          </div>
-          {testType !== 'extended' && (
-            <div style={{
-              background: B.light, border: '1px solid ' + B.border,
-              borderTop: '3px solid ' + B.primary, padding: '.75rem 1rem',
-              borderRadius: SHAPE.card,
-            }}>
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em', color: B.muted, marginBottom: 3 }}>Порог</div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: B.text }}>
-                {role.ranks?.A ? `${Math.round(role.ranks.A * 0.8)}+ / ${role.cogMax || '—'}` : '—'}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Правила */}
-        <div style={{
-          background: '#FFF6E5',
-          borderLeft: '3px solid ' + B.amber,
-          padding: '.875rem 1rem', marginBottom: '1.25rem',
+          background: B.white, border: '1px solid ' + B.border,
+          borderLeft: '3px solid ' + B.primary,
+          padding: '.85rem 1rem',
           borderRadius: SHAPE.card,
         }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#7A4D0F', marginBottom: 4 }}>{t.rulesTtl}</div>
-          <div style={{ fontSize: 12, color: '#7A4D0F', lineHeight: 1.65 }}>{rules}</div>
+          <div style={{
+            fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em',
+            color: B.muted, marginBottom: 4,
+          }}>
+            {testType === 'extended' ? t.time_extended : t.time_classic}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>{timeVal}</div>
         </div>
-
-        <div style={{ height: 1, background: B.border, margin: '1.25rem 0' }} />
-
-        {/* Имя */}
-        <div style={{ fontSize: 13, color: B.muted, marginBottom: 6 }}>{t.nameLabel}</div>
-        <input
-          value={name}
-          onChange={e => onNameChange(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleStart()}
-          placeholder={t.namePh}
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            padding: '11px 12px', fontSize: 14, color: B.text,
-            border: '1px solid ' + B.border, background: B.white,
-            fontFamily: 'inherit', marginBottom: '1rem',
-            outline: 'none', borderRadius: SHAPE.input,
-          }}
-          onFocus={e => e.target.style.borderColor = B.primary}
-          onBlur={e => e.target.style.borderColor = B.border}
-        />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleStart}
-            style={{
-              padding: '10px 28px',
-              background: B.primary, color: B.white,
-              border: 'none',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit',
-              borderRadius: SHAPE.asymmetric,
-            }}
-          >
-            {t.start}
-          </button>
+        <div style={{
+          background: B.white, border: '1px solid ' + B.border,
+          borderLeft: '3px solid ' + B.primary,
+          padding: '.85rem 1rem',
+          borderRadius: SHAPE.card,
+        }}>
+          <div style={{
+            fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em',
+            color: B.muted, marginBottom: 4,
+          }}>{t.timer}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>{timerVal}</div>
         </div>
-      </div>
-    </div>
-  )
-}
+        {testType !== 'extended' && (
+          <div style={{
+            background: B.white, border: '1px solid ' + B.border,
+            borderLeft: '3px solid ' + B.primary,
+            padding: '.85rem 1rem',
+            borderRadius: SHAPE.card,
+          }}>
+            <div style={{
+              fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em',
+              color: B.muted, marginBottom: 4,
+            }}>Порог</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>
+              {role.ranks?.A ? `${Math.round(role.ranks
