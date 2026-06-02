@@ -99,7 +99,7 @@ export default function BlockCognitiveOD({ bank, config, savedState, onComplete 
           Блок 1 из 5 · Вопрос {currentIdx + 1} из {questions.length}
         </p>
         <p style={{ fontSize: 13, color: timerColor, fontWeight: 600, margin: 0 }}>
-          ⏱ {minutes}:{seconds}
+          ⏱ Осталось на блок: {minutes}:{seconds}
         </p>
       </div>
 
@@ -110,6 +110,21 @@ export default function BlockCognitiveOD({ bank, config, savedState, onComplete 
           borderRadius: 2, transition: 'width .3s',
         }} />
       </div>
+
+      {/* Одноразовое info-сообщение на первом вопросе */}
+      {currentIdx === 0 && (
+        <div style={{
+          background: '#E6F1FB',
+          color: '#0C447C',
+          borderRadius: 6,
+          padding: '10px 14px',
+          marginBottom: 20,
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}>
+          Таймер идёт на <strong>весь блок</strong> ({Math.floor(config.timeLimitSec / 60)} мин на {questions.length} вопросов), а не на каждый вопрос. Отвечайте в своём темпе.
+        </div>
+      )}
 
       {/* Вопрос */}
       <h3 style={{ fontSize: 16, lineHeight: 1.6, color: B.text, marginTop: 0, marginBottom: 24 }}>
