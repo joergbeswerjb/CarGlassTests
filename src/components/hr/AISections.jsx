@@ -1,9 +1,10 @@
 // AI-секции: флаги, сценарий интервью, финальный анализ.
-// В Части C.2 - заглушки с кнопками. В Части B - реальная логика.
+// Флаги (B.1) - живые, через <AIFlags>. Сценарий и анализ - заглушки до B.2/B.3.
 
 import { B, SHAPE } from '../../utils/brand.js'
+import AIFlags from './AIFlags.jsx'
 
-function Section({ icon, title, description, buttonText, onAction, isReady, badge }) {
+function Section({ icon, title, description, buttonText, onAction, isReady, badge, children }) {
   return (
     <div style={{
       background: B.white, border: '1px solid ' + B.border,
@@ -34,12 +35,16 @@ function Section({ icon, title, description, buttonText, onAction, isReady, badg
         )}
       </div>
 
-      <p style={{
-        fontSize: 13, color: B.muted, lineHeight: 1.6,
-        margin: '0 0 14px',
-      }}>
-        {description}
-      </p>
+      {description && (
+        <p style={{
+          fontSize: 13, color: B.muted, lineHeight: 1.6,
+          margin: '0 0 14px',
+        }}>
+          {description}
+        </p>
+      )}
+
+      {children}
 
       {buttonText && (
         <button
@@ -64,13 +69,13 @@ function Section({ icon, title, description, buttonText, onAction, isReady, badg
 }
 
 export default function AISections({ row, cfg }) {
-  // В Части B заменим на реальные вызовы. Пока — alert.
+  // Сценарий и финальный анализ - заглушки, реализуем в B.2 и B.3.
   function handleGenerateScript() {
-    alert('Будет реализовано в Части B:\n\n1. AI читает все ответы кандидата\n2. Анализирует слабые/неясные зоны\n3. Генерирует 5-7 STAR-вопросов прицельно туда, где тест показал слабину\n4. Возвращает структурированный сценарий интервью')
+    alert('Будет реализовано в Части B.2:\n\n1. AI читает все ответы кандидата\n2. Анализирует слабые/неясные зоны\n3. Генерирует 5-7 STAR-вопросов прицельно туда, где тест показал слабину\n4. Возвращает структурированный сценарий интервью')
   }
 
   function handleGenerateAnalysis() {
-    alert('Будет реализовано в Части B:\n\n1. AI читает тест + твои заметки с интервью\n2. Делает сводную оценку по 4 категориям (builder, anti-hoarding, hands-on, quality-vs-speed)\n3. Выдаёт финальную рекомендацию + риски + вопросы для референса')
+    alert('Будет реализовано в Части B.3:\n\n1. AI читает тест + ответы с интервью\n2. Делает сводную оценку\n3. Выдаёт финальную рекомендацию + риски + вопросы для референса')
   }
 
   return (
@@ -78,9 +83,10 @@ export default function AISections({ row, cfg }) {
       <Section
         icon="🚩"
         title="AI-флаги по ответам"
-        description="Автоматический анализ свободных ответов кандидата из Блоков 3, 4, 5. AI находит критические красные сигналы, жёлтые предупреждения и позитивные маркеры."
-        badge="Будет в Части B"
-      />
+        description="Автоматический анализ свободных ответов и DISC-сигналов кандидата. Красные риски, жёлтые предупреждения и позитивные маркеры - каждый с привязкой к профилю основателя."
+      >
+        <AIFlags row={row} />
+      </Section>
 
       <Section
         icon="🎯"
@@ -95,7 +101,7 @@ export default function AISections({ row, cfg }) {
       <Section
         icon="📋"
         title="Финальный анализ"
-        description="Сводный отчёт после проведённого интервью: оценка по 4 категориям, рекомендация (рекомендуется / условно / не рекомендуется), что компенсировать в команде, риски для onboarding, вопросы для звонка референсу."
+        description="Сводный отчёт после проведённого интервью: оценка по категориям, рекомендация (рекомендуется / условно / не рекомендуется), что компенсировать в команде, риски для onboarding, вопросы для звонка референсу."
         buttonText="Создать финальный анализ"
         onAction={handleGenerateAnalysis}
         isReady={true}
