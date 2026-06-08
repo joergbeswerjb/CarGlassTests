@@ -1,8 +1,10 @@
-// AI-секции: флаги, сценарий интервью, финальный анализ.
-// Флаги (B.1) - живые, через <AIFlags>. Сценарий и анализ - заглушки до B.2/B.3.
+// AI-секции: CV, флаги, сценарий интервью, финальный анализ.
+// CV (B.2), флаги (B.1), сценарий (B.2) - живые. Финальный анализ - заглушка до B.3.
 
 import { B, SHAPE } from '../../utils/brand.js'
+import CVInput from './CVInput.jsx'
 import AIFlags from './AIFlags.jsx'
+import InterviewScript from './InterviewScript.jsx'
 
 function Section({ icon, title, description, buttonText, onAction, isReady, badge, children }) {
   return (
@@ -69,13 +71,9 @@ function Section({ icon, title, description, buttonText, onAction, isReady, badg
 }
 
 export default function AISections({ row, cfg }) {
-  // Сценарий и финальный анализ - заглушки, реализуем в B.2 и B.3.
-  function handleGenerateScript() {
-    alert('Будет реализовано в Части B.2:\n\n1. AI читает все ответы кандидата\n2. Анализирует слабые/неясные зоны\n3. Генерирует 5-7 STAR-вопросов прицельно туда, где тест показал слабину\n4. Возвращает структурированный сценарий интервью')
-  }
-
+  // Финальный анализ - заглушка, реализуем в B.3.
   function handleGenerateAnalysis() {
-    alert('Будет реализовано в Части B.3:\n\n1. AI читает тест + ответы с интервью\n2. Делает сводную оценку\n3. Выдаёт финальную рекомендацию + риски + вопросы для референса')
+    alert('Будет реализовано в Части B.3:\n\n1. AI читает тест + CV + ответы с интервью\n2. Сводная оценка\n3. Финальная рекомендация + риски + вопросы для референса')
   }
 
   return (
@@ -89,14 +87,20 @@ export default function AISections({ row, cfg }) {
       </Section>
 
       <Section
+        icon="📄"
+        title="CV кандидата"
+        description="Текст резюме. Учитывается при генерации сценария интервью и финального анализа: вопросы цепляются к реальным местам работы и проверяют расхождения с сигналами теста."
+      >
+        <CVInput row={row} />
+      </Section>
+
+      <Section
         icon="🎯"
         title="Сценарий интервью"
-        description="AI генерирует 5-7 прицельных STAR-вопросов под результаты теста этого кандидата. Закрывает зоны, которые тест не измеряет напрямую: Builder-способность, готовность отпускать, hands-on диспозиция."
-        buttonText="Сгенерировать сценарий"
-        onAction={handleGenerateScript}
-        isReady={true}
-        badge="Demo: alert"
-      />
+        description="5-7 прицельных STAR-вопросов под результаты этого кандидата плюс стандартная вводная и закрытие. Закрывает зоны, которые тест не измеряет: builder-способность, готовность отпускать, hands-on диспозиция."
+      >
+        <InterviewScript row={row} />
+      </Section>
 
       <Section
         icon="📋"
