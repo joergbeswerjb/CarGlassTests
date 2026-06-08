@@ -1,4 +1,4 @@
-// ─── API: Google Sheets через Apps Script (v5-b1) ───────────────────────────
+// ─── API: Google Sheets через Apps Script (v6-b2) ───────────────────────────
 // Apps Script возвращает: { ok: true, ... } при успехе или { error: '...' } при ошибке.
 // GET для чтения, POST с JSON body для записи, удаления и AI-генерации.
 const SHEETS_URL = import.meta.env.VITE_SHEETS_URL
@@ -83,12 +83,30 @@ export async function saveAnalysis(params) {
 }
 
 /**
+ * Сохранить текст резюме кандидата (B.2).
+ * @param {string} id      UUID кандидата
+ * @param {string} role    sheetName
+ * @param {string} cvText  текст резюме
+ */
+export async function saveCV(id, role, cvText) {
+  const body = { action: 'save_cv', id: id, role: role, cv_text: cvText }
+  const res = await fetch(SHEETS_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(body),
+  })
+  const json = await res.json()
+  if (!json.ok) throw new Error(json.error || 'Save CV failed')
+  return json
+}
+
+/**
  * Сгенерировать AI-флаги для кандидата (Часть B.1).
- * Apps Script сам читает строку по ID, вызывает модель, валидирует контракт
- * из 5 полей и сохраняет результат в колонку "AI флаги". Возвращает массив флагов.
+ * Apps Script читает строку по ID, вызывает модель, валидирует контракт из
+ * 5 полей и сохраняет в колонку "AI флаги". Возвращает массив флагов.
  * @param {string} id    UUID кандидата (поле "ID")
  * @param {string} role  sheetName
- * @returns {Promise<Array<object>>}  массив флагов { type, severity, quote, explanation, role_implication }
+ * @returns {Promise<Array<object>>}  массив флагов
  */
 export async function generateFlags(id, role) {
   const body = { action: 'generate_flags', id: id, role: role }
@@ -100,4 +118,24 @@ export async function generateFlags(id, role) {
   const json = await res.json()
   if (!json.ok) throw new Error(json.error || 'Generate flags failed')
   return json.flags || []
+}
+
+/**
+ * Сгенерировать сценарий интервью (Часть B.2).
+ * Apps Script читает строку по ID (тест + флаги + CV), вызывает модель,
+ * валидирует контракт из 4 полей и сохраняет в колонку "Сценарий интервью".
+ * @param {string} id    UUID кандидата
+ * @param {string} role  sheetName
+ * @returns {Promise<Array<object>>}  массив вопросов { question, probes, good_signal, concern_signal }
+ */
+export async function generateScript(id, role) {
+  const body = { action: 'generate_script', id: id, role: role }
+  const res = await fetch(SHEETS_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(body),
+  })
+  const json = await res.json()
+  if (!json.ok) throw new Error(json.error || 'Generate script failed')
+  return json.script || []
 }
