@@ -1,12 +1,13 @@
-// Сценарий интервью (B.2). Вводная и закрытие - фиксированный шаблон,
-// основная часть (STAR-вопросы) - генерируется по кнопке через generate_script
-// и сохраняется в колонку "Сценарий интервью".
+// Сценарий интервью + рабочий лист ответов (B.2 + B.3).
+// Вводная и закрытие - фиксированный шаблон. Основная часть - STAR-вопросы,
+// сгенерированные через generate_script. Под каждым вопросом - поле для ответа
+// кандидата с интервью; ответы сохраняются через save_answers и потом идут
+// в финальный анализ.
 
 import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
-import { generateScript } from '../../utils/api.js'
+import { generateScript, saveAnswers } from '../../utils/api.js'
 
-// Фиксированный шаблон. Одинаков для всех ОД-кандидатов; правится здесь.
 const INTRO_FRAMING = 'Спасибо, что нашли время. Я заранее посмотрел ваше резюме и результаты теста - пересказывать карьеру не нужно. Сегодня сфокусируемся на конкретных рабочих ситуациях: интересно не что в резюме, а как вы действуете.'
 const INTRO_WARMUPS = [
   'Коротко - что именно в этой роли вам интересно и почему сейчас? (~2 мин)',
@@ -29,6 +30,23 @@ function parseStored(raw) {
   }
 }
 
+// Достаём сохранённые ответы и раскладываем по индексам вопросов.
+function parseAnswers(raw, scriptLen) {
+  const out = []
+  for (let i = 0; i < scriptLen; i++) out.push('')
+  if (!raw) return out
+  try {
+    const arr = JSON.parse(raw)
+    if (Array.isArray(arr)) {
+      for (let i = 0; i < scriptLen && i < arr.length; i++) {
+        const a = arr[i]
+        out[i] = (a && typeof a === 'object') ? (a.answer || '') : String(a || '')
+      }
+    }
+  } catch (e) {}
+  return out
+}
+
 function TemplateBlock({ label, children }) {
   return (
     <div style={{
@@ -43,7 +61,10 @@ function TemplateBlock({ label, children }) {
   )
 }
 
-function QuestionCard({ q, index }) {
+function QuestionCard({ q, index, answer, onAnswerChange }) {
+  function handleChange(e) {
+    onAnswerChange(index, e.target.value)
+  }
   return (
     <div style={{
       background: B.white, border: '1px solid ' + B.border,
@@ -56,7 +77,7 @@ function QuestionCard({ q, index }) {
       <div style={{ fontSize: 13, color: B.text, marginBottom: 10, lineHeight: 1.5 }}>
         <span style={{ color: B.muted }}>Проверяем: </span>{q.probes}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
         <div style={{ fontSize: 13, color: B.green, lineHeight: 1.5 }}>
           <span style={{ fontWeight: 600 }}>Сильный: </span>{q.good_signal}
         </div>
@@ -64,6 +85,19 @@ function QuestionCard({ q, index }) {
           <span style={{ fontWeight: 600 }}>Тревожный: </span>{q.concern_signal}
         </div>
       </div>
+      <textarea
+        value={answer}
+        onChange={handleChange}
+        placeholder="Ответ кандидата с интервью..."
+        rows={3}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5,
+          color: B.text, background: B.light,
+          border: '1px solid ' + B.border, borderRadius: SHAPE.input,
+          padding: '8px 10px', resize: 'vertical',
+        }}
+      />
     </div>
   )
 }
@@ -71,9 +105,17 @@ function QuestionCard({ q, index }) {
 export default function InterviewScript({ row }) {
   const id = row['ID']
   const role = row['Роль']
-  const [script, setScript] = useState(function () { return parseStored(row['Сценарий интервью']) })
+  const initialScript = parseStored(row['Сценарий интервью'])
+
+  const [script, setScript] = useState(function () { return initialScript })
+  const [answers, setAnswers] = useState(function () {
+    return parseAnswers(row['Ответы интервью'], initialScript ? initialScript.length : 0)
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [savingAnswers, setSavingAnswers] = useState(false)
+  const [answersSaved, setAnswersSaved] = useState(false)
+  const [answersError, setAnswersError] = useState(null)
 
   function run() {
     setLoading(true)
@@ -81,11 +123,40 @@ export default function InterviewScript({ row }) {
     generateScript(id, role)
       .then(function (result) {
         setScript(result)
+        const blank = []
+        for (let i = 0; i < result.length; i++) blank.push('')
+        setAnswers(blank)
+        setAnswersSaved(false)
         setLoading(false)
       })
       .catch(function (err) {
         setError(String(err.message || err))
         setLoading(false)
+      })
+  }
+
+  function handleAnswerChange(i, val) {
+    const next = answers.slice()
+    next[i] = val
+    setAnswers(next)
+    setAnswersSaved(false)
+  }
+
+  function handleSaveAnswers() {
+    setSavingAnswers(true)
+    setAnswersSaved(false)
+    setAnswersError(null)
+    const payload = script.map(function (q, i) {
+      return { question: q.question, answer: answers[i] || '' }
+    })
+    saveAnswers(id, role, payload)
+      .then(function () {
+        setSavingAnswers(false)
+        setAnswersSaved(true)
+      })
+      .catch(function (err) {
+        setSavingAnswers(false)
+        setAnswersError(String(err.message || err))
       })
   }
 
@@ -146,8 +217,35 @@ export default function InterviewScript({ row }) {
         Основная часть — под кандидата
       </div>
       {script.map(function (q, i) {
-        return <QuestionCard key={i} q={q} index={i} />
+        return (
+          <QuestionCard
+            key={i}
+            q={q}
+            index={i}
+            answer={answers[i] || ''}
+            onAnswerChange={handleAnswerChange}
+          />
+        )
       })}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0 16px' }}>
+        <button
+          onClick={handleSaveAnswers}
+          disabled={savingAnswers}
+          style={{
+            padding: '8px 16px',
+            background: savingAnswers ? B.light : B.primary,
+            color: savingAnswers ? B.muted : B.white,
+            border: 'none', borderRadius: SHAPE.asymmetric,
+            fontSize: 13, fontWeight: 600,
+            cursor: savingAnswers ? 'default' : 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {savingAnswers ? 'Сохранение...' : 'Сохранить ответы'}
+        </button>
+        {answersSaved && <span style={{ fontSize: 13, color: B.green }}>Ответы сохранены</span>}
+        {answersError && <span style={{ fontSize: 13, color: B.red }}>Ошибка: {answersError}</span>}
+      </div>
 
       <TemplateBlock label="Закрытие (стандартное)">
         <div style={{ fontSize: 14, color: B.text, lineHeight: 1.7 }}>
@@ -162,7 +260,7 @@ export default function InterviewScript({ row }) {
         border: '1px solid ' + B.border, borderRadius: SHAPE.input,
         fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
       }}>
-        Перегенерировать
+        Перегенерировать сценарий
       </button>
     </div>
   )
