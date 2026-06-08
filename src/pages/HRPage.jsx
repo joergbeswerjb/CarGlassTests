@@ -20,6 +20,7 @@ function LoginScreen({ onSuccess }) {
 
   function handleSubmit() {
     if (pwd === HR_PASSWORD) {
+      try { sessionStorage.setItem('glassgo_hr_logged', '1') } catch (e) {}
       onSuccess()
     } else {
       setErr('Неверный пароль')
@@ -360,7 +361,9 @@ function CandidatesTable({ rows, columns, onRowClick, loading, error }) {
 // Main HR Page
 // ============================================================
 export default function HRPage() {
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(function () {
+    try { return sessionStorage.getItem('glassgo_hr_logged') === '1' } catch (e) { return false }
+  })
   const [roleSlug, setRoleSlug] = useState(HR_ROLES_ORDER[0])
   const [allRows, setAllRows] = useState({})
   const [counts, setCounts] = useState({})
