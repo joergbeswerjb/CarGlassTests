@@ -1,7 +1,24 @@
-// Блок 2 — DISC для OD-формата. 4 горизонтальные шкалы D/I/S/C с % и raw баллами + ловушки.
+// Блок 2 — DISC для OD-формата. 4 горизонтальные шкалы D/I/S/C с % и raw баллами + маркеры.
 
 import { B, SHAPE } from '../../utils/brand.js'
 import { DISC_COLOR, DISC_LABELS, parseList, discColorByValue } from '../../utils/hr-format.js'
+
+// Классификация поведенческих маркеров (бэклог №1): не все "ловушки" негативны.
+// positive - подтверждённая сила; critical - жёсткий риск; прочие (по умолчанию) -
+// нейтральное "внимание". Локально, т.к. это про отображение в этом блоке;
+// при общем использовании вынести в hr-format.js.
+const TRAP_KIND = {
+  d_healthy:          'positive',
+  honest:             'positive',
+  passive_risk:       'critical',
+  social_desirability:'critical',
+}
+
+const KIND_STYLE = {
+  positive: { bg: B.greenBg, border: B.green,   fg: B.green },
+  warning:  { bg: '#FFF6E5', border: '#BA7517', fg: '#7A4D0F' },
+  critical: { bg: B.redBg,   border: B.red,     fg: '#7A1A1A' },
+}
 
 function ScaleBar({ letter, pct, raw }) {
   const color = DISC_COLOR[letter] || B.muted
@@ -101,26 +118,26 @@ export default function BlockDiscExtendedSummary({ row }) {
       {traps.length > 0 && (
         <div style={{
           padding: '12px 16px',
-          background: '#FFF6E5',
-          borderLeft: '3px solid #BA7517',
+          background: B.light,
+          border: '1px solid ' + B.border,
           borderRadius: SHAPE.input,
           fontSize: 13,
         }}>
-          <div style={{ fontSize: 11, color: '#7A4D0F', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700, marginBottom: 6 }}>
-            ⚠ Сработали ловушки ({traps.length})
+          <div style={{ fontSize: 11, color: B.muted, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700, marginBottom: 8 }}>
+            Маркеры по ответам ({traps.length})
           </div>
-          <div style={{ color: B.text, lineHeight: 1.6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {traps.map(function (t, i) {
+              const ks = KIND_STYLE[TRAP_KIND[t] || 'warning']
               return (
                 <span key={i} style={{
                   display: 'inline-block',
-                  background: B.white,
-                  border: '1px solid #BA7517',
+                  background: ks.bg,
+                  border: '1px solid ' + ks.border,
                   borderRadius: 4,
                   padding: '2px 10px',
-                  marginRight: 6, marginBottom: 4,
                   fontSize: 12, fontWeight: 600,
-                  color: '#7A4D0F',
+                  color: ks.fg,
                   fontFamily: 'monospace',
                 }}>
                   {t}
