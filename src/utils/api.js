@@ -1,29 +1,31 @@
-// ─── API: Google Sheets через Apps Script (v6-b2) ───────────────────────────
+// ─── API: Google Sheets через Apps Script (v7-b3) ───────────────────────────
 // Apps Script возвращает: { ok: true, ... } при успехе или { error: '...' } при ошибке.
 // GET для чтения, POST с JSON body для записи, удаления и AI-генерации.
 const SHEETS_URL = import.meta.env.VITE_SHEETS_URL
 
-/**
- * Сохранить результат теста.
- * @param {object} payload  результат из buildPayload() или buildPayloadOD()
- * @returns {Promise<{ok: true, id: string}>}
- */
-export async function saveAssessment(payload) {
-  const body = { action: 'save', ...payload }
+async function postAction(body, failMsg) {
   const res = await fetch(SHEETS_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body:    JSON.stringify(body),
   })
   const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Save failed')
+  if (!json.ok) throw new Error(json.error || failMsg)
   return json
+}
+
+/**
+ * Сохранить результат теста.
+ * @param {object} payload  результат из buildPayload() или buildPayloadOD()
+ */
+export async function saveAssessment(payload) {
+  return postAction({ action: 'save', ...payload }, 'Save failed')
 }
 
 /**
  * Получить все результаты по роли.
  * @param {string} role  sheetName из roles.js
- * @returns {Promise<Array<object>>}  массив строк-объектов с ключами по заголовкам Sheets
+ * @returns {Promise<Array<object>>}
  */
 export async function fetchAssessments(role) {
   const url = SHEETS_URL + '?action=get&role=' + encodeURIComponent(role)
@@ -35,107 +37,66 @@ export async function fetchAssessments(role) {
 
 /**
  * Удалить запись по ID.
- * @param {string} id    UUID из таблицы (поле "ID")
- * @param {string} role  sheetName
  */
 export async function deleteAssessment(id, role) {
-  const body = { action: 'delete', id: id, role: role }
-  const res = await fetch(SHEETS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body:    JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Delete failed')
-  return json
+  return postAction({ action: 'delete', id: id, role: role }, 'Delete failed')
 }
 
 /**
- * Сохранить сценарий интервью и ответы (для Точки 3, Часть C).
- * @param {object} params  { id, role, interview_script, interview_answers }
+ * Сохранить сценарий интервью и ответы (legacy, Точка 3 / Часть C).
  */
 export async function saveInterview(params) {
-  const body = { action: 'save_interview', ...params }
-  const res = await fetch(SHEETS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body:    JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Save interview failed')
-  return json
+  return postAction({ action: 'save_interview', ...params }, 'Save interview failed')
 }
 
 /**
- * Сохранить финальный анализ (для Точки 3, Часть B).
- * @param {object} params  { id, role, final_analysis, final_recommendation }
+ * Сохранить финальный анализ (ручной путь).
  */
 export async function saveAnalysis(params) {
-  const body = { action: 'save_analysis', ...params }
-  const res = await fetch(SHEETS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body:    JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Save analysis failed')
-  return json
+  return postAction({ action: 'save_analysis', ...params }, 'Save analysis failed')
 }
 
 /**
  * Сохранить текст резюме кандидата (B.2).
- * @param {string} id      UUID кандидата
- * @param {string} role    sheetName
- * @param {string} cvText  текст резюме
  */
 export async function saveCV(id, role, cvText) {
-  const body = { action: 'save_cv', id: id, role: role, cv_text: cvText }
-  const res = await fetch(SHEETS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body:    JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Save CV failed')
-  return json
+  return postAction({ action: 'save_cv', id: id, role: role, cv_text: cvText }, 'Save CV failed')
 }
 
 /**
- * Сгенерировать AI-флаги для кандидата (Часть B.1).
- * Apps Script читает строку по ID, вызывает модель, валидирует контракт из
- * 5 полей и сохраняет в колонку "AI флаги". Возвращает массив флагов.
- * @param {string} id    UUID кандидата (поле "ID")
- * @param {string} role  sheetName
- * @returns {Promise<Array<object>>}  массив флагов
+ * Сохранить ответы кандидата с интервью (B.3).
+ * @param {string} id        UUID кандидата
+ * @param {string} role      sheetName
+ * @param {Array}  answers   массив { question, answer }
+ */
+export async function saveAnswers(id, role, answers) {
+  return postAction({
+    action: 'save_answers', id: id, role: role,
+    interview_answers: JSON.stringify(answers),
+  }, 'Save answers failed')
+}
+
+/**
+ * Сгенерировать AI-флаги (B.1). Возвращает массив флагов.
  */
 export async function generateFlags(id, role) {
-  const body = { action: 'generate_flags', id: id, role: role }
-  const res = await fetch(SHEETS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body:    JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Generate flags failed')
+  const json = await postAction({ action: 'generate_flags', id: id, role: role }, 'Generate flags failed')
   return json.flags || []
 }
 
 /**
- * Сгенерировать сценарий интервью (Часть B.2).
- * Apps Script читает строку по ID (тест + флаги + CV), вызывает модель,
- * валидирует контракт из 4 полей и сохраняет в колонку "Сценарий интервью".
- * @param {string} id    UUID кандидата
- * @param {string} role  sheetName
- * @returns {Promise<Array<object>>}  массив вопросов { question, probes, good_signal, concern_signal }
+ * Сгенерировать сценарий интервью (B.2). Возвращает массив вопросов.
  */
 export async function generateScript(id, role) {
-  const body = { action: 'generate_script', id: id, role: role }
-  const res = await fetch(SHEETS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body:    JSON.stringify(body),
-  })
-  const json = await res.json()
-  if (!json.ok) throw new Error(json.error || 'Generate script failed')
+  const json = await postAction({ action: 'generate_script', id: id, role: role }, 'Generate script failed')
   return json.script || []
+}
+
+/**
+ * Сгенерировать финальный анализ (B.3). Возвращает объект-досье.
+ * Apps Script читает тест + CV + сценарий + ответы, вызывает Opus, сохраняет.
+ */
+export async function generateAnalysis(id, role) {
+  const json = await postAction({ action: 'generate_analysis', id: id, role: role }, 'Generate analysis failed')
+  return json.analysis || null
 }
