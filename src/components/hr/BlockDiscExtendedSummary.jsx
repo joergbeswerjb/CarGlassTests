@@ -5,13 +5,29 @@ import { DISC_COLOR, DISC_LABELS, parseList, discColorByValue } from '../../util
 
 // Классификация поведенческих маркеров (бэклог №1): не все "ловушки" негативны.
 // positive - подтверждённая сила; critical - жёсткий риск; прочие (по умолчанию) -
-// нейтральное "внимание". Локально, т.к. это про отображение в этом блоке;
-// при общем использовании вынести в hr-format.js.
+// нейтральное "внимание".
 const TRAP_KIND = {
   d_healthy:          'positive',
   honest:             'positive',
   passive_risk:       'critical',
   social_desirability:'critical',
+}
+
+// Человекочитаемые названия (бэклог №6). Неизвестный код покажется как есть.
+// Когда маркеры начнут отображаться и в других вьюхах (stats/фильтры) -
+// вынести TRAP_KIND + TRAP_LABELS в hr-format.js как общий словарь.
+const TRAP_LABELS = {
+  d_healthy:           'Здоровое доминирование',
+  honest:              'Честные ответы',
+  passive_risk:        'Уход от эскалации',
+  social_desirability: 'Социальная желательность',
+  burnout_risk:        'Риск выгорания',
+  pressure_status:     'Стрессоустойчивость',
+  conflict_risk:       'Склонность к конфликту',
+  salary_signal:       'Зарплатная мотивация',
+  ambition_fit:        'Соответствие амбиций',
+  cash_attitude:       'Отношение к наличным',
+  loyalty_friend:      'Лояльность против дружбы',
 }
 
 const KIND_STYLE = {
@@ -129,18 +145,18 @@ export default function BlockDiscExtendedSummary({ row }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {traps.map(function (t, i) {
               const ks = KIND_STYLE[TRAP_KIND[t] || 'warning']
+              const label = TRAP_LABELS[t] || t
               return (
-                <span key={i} style={{
+                <span key={i} title={t} style={{
                   display: 'inline-block',
                   background: ks.bg,
                   border: '1px solid ' + ks.border,
-                  borderRadius: 4,
-                  padding: '2px 10px',
+                  borderRadius: 6,
+                  padding: '3px 12px',
                   fontSize: 12, fontWeight: 600,
                   color: ks.fg,
-                  fontFamily: 'monospace',
                 }}>
-                  {t}
+                  {label}
                 </span>
               )
             })}
