@@ -3,7 +3,9 @@
 //   - classic  (technик): 3 блока, билингвальный RU/KZ
 //   - extended (OD): 5 блоков, только русский
 // Брендинг GlassGo: светлая страница, синий primary, асимметричная плашка.
+// Согласие на обработку данных - обязательная галочка, без неё тест не стартует.
 
+import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
 
 const T = {
@@ -27,10 +29,14 @@ const T = {
     rulesTtl: 'Правила тестирования',
     rules_classic:  'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру. В Блоке 3 внимательно изучите изображение перед тем, как отмечать нарушения.',
     rules_extended: 'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру на весь блок (22 мин на 20 вопросов). В блоках 3-5 ваши ответы оцениваются по существу - пишите развёрнуто и конкретно. Прогресс сохраняется автоматически.',
+    consentTtl:   'Согласие на обработку данных',
+    consentText:  'Тест собирает и обрабатывает ваши персональные данные (ФИО, ответы, резюме) для оценки кандидатуры. Данные хранятся на облачных сервисах, в том числе за пределами РК, используются только для найма и по запросу могут быть предоставлены, исправлены или удалены.',
+    consentCheck: 'Я ознакомлен и даю согласие на обработку моих персональных данных, включая хранение за пределами РК.',
     nameLabel:'Имя и фамилия кандидата:',
     namePh:   'Иванов Иван',
     start:    'Начать тест ->',
     noName:   'Введите имя кандидата',
+    noConsent:'Отметьте согласие на обработку данных, чтобы начать',
   },
   kz: {
     badge:    'GlassGo · Кандидаттарды бағалау',
@@ -52,16 +58,21 @@ const T = {
     rulesTtl: 'Тест ережелері',
     rules_classic:  'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді. 3-блокта суретті мұқият зерттеңіз.',
     rules_extended: 'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді (22 мин). 3-5 блоктарда жауаптарыңыз мазмұны бойынша бағаланады. Прогресс автоматты түрде сақталады.',
+    consentTtl:   'Деректерді өңдеуге келісім',
+    consentText:  'Тест сіздің жеке деректеріңізді (аты-жөні, жауаптар, түйіндеме) кандидатураны бағалау үшін жинайды және өңдейді. Деректер бұлттық сервистерде, оның ішінде ҚР-дан тыс жерде сақталады, тек жұмысқа қабылдау үшін пайдаланылады және сұрау бойынша берілуі, түзетілуі немесе жойылуы мүмкін.',
+    consentCheck: 'Жеке деректерімді өңдеуге, оның ішінде ҚР-дан тыс сақтауға келісім беремін.',
     nameLabel:'Кандидаттың аты-жөні:',
     namePh:   'Иванов Иван',
     start:    'Тестті бастау ->',
     noName:   'Кандидаттың атын енгізіңіз',
+    noConsent:'Бастау үшін деректерді өңдеуге келісімді белгілеңіз',
   },
 }
 
 export default function BlockIntro({ role, lang, name, onNameChange, onStart }) {
   const t = T[lang] || T.ru
   const testType = role.testType || 'classic'
+  const [consent, setConsent] = useState(false)
 
   function getQuestionCount(blockKey) {
     const q = role.questions
@@ -99,6 +110,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
 
   function handleStart() {
     if (!name.trim()) { alert(t.noName); return }
+    if (!consent) { alert(t.noConsent); return }
     onStart()
   }
 
@@ -130,6 +142,8 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
     const cogMax = role.cogMax || '-'
     thresholdText = minScore + '+ / ' + cogMax
   }
+
+  const canStart = name.trim() !== '' && consent
 
   return (
     <div style={{
@@ -252,7 +266,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
       <div style={{
         background: '#FFF6E5',
         borderLeft: '3px solid ' + B.amber,
-        padding: '.95rem 1.1rem', marginBottom: 28,
+        padding: '.95rem 1.1rem', marginBottom: 24,
         borderRadius: SHAPE.card,
       }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#7A4D0F', marginBottom: 6 }}>{t.rulesTtl}</div>
@@ -276,14 +290,41 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
         onBlur={function (e) { e.target.style.borderColor = B.border }}
       />
 
+      <div style={{
+        background: B.light, border: '1px solid ' + B.border,
+        borderRadius: SHAPE.card, padding: '14px 16px', marginBottom: 14,
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: B.text, marginBottom: 6 }}>{t.consentTtl}</div>
+        <div style={{ fontSize: 12, color: B.muted, lineHeight: 1.6 }}>{t.consentText}</div>
+      </div>
+
+      <label style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        marginBottom: 22, cursor: 'pointer',
+      }}>
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={function (e) { setConsent(e.target.checked) }}
+          style={{
+            marginTop: 2, width: 17, height: 17, flexShrink: 0,
+            cursor: 'pointer', accentColor: B.primary,
+          }}
+        />
+        <span style={{ fontSize: 13, color: B.text, lineHeight: 1.5 }}>{t.consentCheck}</span>
+      </label>
+
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           onClick={handleStart}
+          disabled={!canStart}
           style={{
             padding: '12px 32px',
-            background: B.primary, color: B.white,
+            background: canStart ? B.primary : B.light,
+            color: canStart ? B.white : B.muted,
             border: 'none',
-            fontSize: 15, fontWeight: 600, cursor: 'pointer',
+            fontSize: 15, fontWeight: 600,
+            cursor: canStart ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit',
             borderRadius: SHAPE.asymmetric,
           }}
