@@ -64,6 +64,8 @@ export function calcOverall(cog, disc, vis, role) {
 export function buildPayload({ name, lang, role, cogResult, discResult, visResult, overallResult, rawCog, rawDisc, rawVis }) {
   return {
     candidate_name: name, lang, role: role.sheetName,
+    consent: 'да',
+    consent_at: new Date().toISOString(),
     cog_score: cogResult.score, cog_max: cogResult.max, cog_pct: cogResult.pct,
     disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
     disc_primary: discResult.primary, disc_secondary: discResult.secondary,
@@ -322,6 +324,8 @@ export function buildPayloadOD({
     candidate_name: name,
     lang: 'ru',
     role: role.sheetName,
+    consent: 'да',
+    consent_at: new Date().toISOString(),
 
     // Когнитивный
     cog_score:    cogResult.score,
