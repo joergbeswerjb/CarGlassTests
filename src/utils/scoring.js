@@ -213,11 +213,31 @@ export function calcVisualOD(answers, scenes) {
   })
 
   const pct = max > 0 ? Math.round((score / max) * 100) : 0
+
+  // Целые счётчики и списки нарушений — для читаемой HR-карточки
+  let totalCount = 0
+  const missedList = []
+  scenes.forEach(scene => {
+    scene.violations.forEach(v => {
+      totalCount++
+      const wasFound = foundViolations.some(f => f.sceneId === scene.id && f.violationId === v.id)
+      if (!wasFound) missedList.push({ sceneId: scene.id, label: v.label, level: v.level })
+    })
+  })
+  const foundList = foundViolations.map(f => ({ sceneId: f.sceneId, label: f.label, level: f.level }))
+  const foundCount = foundViolations.length
+  const totalClicks = foundCount + bonusObservations + falsePositives
+
   return {
     score, max, pct,
+    foundCount, totalCount,
+    hits: foundCount,
+    totalClicks,
     falsePositives,
     bonusObservations,
     bonusList,
+    foundList,
+    missedList,
     foundViolations,
     rawMarks: allMarks,
   }
@@ -349,6 +369,12 @@ export function buildPayloadOD({
     vis_pct:             visResult.pct,
     vis_false_positives: visResult.falsePositives,
     vis_bonus_count:     visResult.bonusObservations,
+    vis_found_count:     visResult.foundCount,
+    vis_total_count:     visResult.totalCount,
+    vis_hits:            visResult.hits,
+    vis_total_clicks:    visResult.totalClicks,
+    vis_found_list:      visResult.foundList,
+    vis_missed_list:     visResult.missedList,
     vis_bonus_list:      visResult.bonusList,
     raw_vis_marks:       visResult.rawMarks,
 
