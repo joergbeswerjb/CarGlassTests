@@ -1,6 +1,8 @@
 // ─── Блок 3: Визуальный с кликом по фото ────────────────────────────────────
-// Лимит 10 отметок на сцену. Каждая отметка обязательно с описанием ≥ 20 символов.
-// Подсветка неописанных оранжевым (в списке и на маркерах фото).
+// Кандидат ставит пин на то, что заметил, и обязательно описывает (≥ 20 символов).
+// Привязки к зонам НЕТ — пин это просто указатель (x/y для HR), а оценка ответа
+// идёт по тексту примечания в AI-слое (сверка с скрытым эталоном сцены).
+// Лимит 10 отметок на сцену. Неописанные подсвечиваются оранжевым.
 
 import { useState, useRef } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
@@ -36,14 +38,10 @@ export default function BlockVisualClickable({ scenes, savedAnswers, onComplete 
     const rect = imgRef.current.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
-    const hit = currentScene.violations.find(v =>
-      x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h
-    )
+    // Пин — просто указатель. Никакой привязки к зонам нарушений.
     const newMark = {
       x: Math.round(x * 100) / 100,
       y: Math.round(y * 100) / 100,
-      violationId: hit ? hit.id : null,
-      label: hit ? hit.label : 'Не определено',
       explanation: '',
     }
     const next = [...marks]
@@ -163,7 +161,7 @@ export default function BlockVisualClickable({ scenes, savedAnswers, onComplete 
       }}>
         {limitReached
           ? '⚠ Достигнут лимит отметок. Уберите одну, если хотите поставить другую.'
-          : 'Нажмите на любое нарушение на фото — появится отметка. Каждой отметке нужно дать описание (минимум ' + MIN_EXPLANATION_CHARS + ' символов). Чтобы вернуться к отметке — нажмите на её номер на фото или в списке ниже.'}
+          : 'Нажмите на то, что считаете нарушением, — появится отметка. Каждой отметке нужно дать описание (минимум ' + MIN_EXPLANATION_CHARS + ' символов): что это и почему отклонение от стандарта. Чтобы вернуться к отметке — нажмите на её номер на фото или в списке ниже.'}
       </p>
 
       {currentMarks.length > 0 && (
@@ -219,11 +217,11 @@ export default function BlockVisualClickable({ scenes, savedAnswers, onComplete 
               ✕ Убрать
             </button>
           </div>
-          <p style={{ fontSize: 13, color: B.text, margin: '0 0 8px' }}>Почему это нарушение стандарта?</p>
+          <p style={{ fontSize: 13, color: B.text, margin: '0 0 8px' }}>Что вы видите и почему это нарушение стандарта?</p>
           <textarea
             value={activeMark.explanation}
             onChange={e => updateExplanation(activeMarkIdx, e.target.value)}
-            placeholder="Опишите, почему это отклонение от стандарта сервиса..."
+            placeholder="Опишите, что заметили и почему это отклонение от стандарта сервиса..."
             rows={3}
             style={{
               width: '100%', padding: '8px 10px',
