@@ -1,9 +1,14 @@
-// Блок 3 — Визуальный стандарт для OD-формата.
-// Цифры: найдено / процент / бонус / всего кликов + разворачиваемый список описаний.
+// Блок 3 — Визуальный стандарт (HR-карточка OD).
+// Счёт и взвешенный балл разнесены; клики целыми числами;
+// показываем по существу: что найдено, что пропущено, и текст осмысленных наблюдений.
+// Богатые данные берём из 'Сырые данные' (JSON payload). Старые записи (до обновления
+// scoring) — мягкий фолбэк по колонкам.
 
 import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
 import { parseScore } from '../../utils/hr-format.js'
+
+const LEVEL_RU = { easy: 'лёгкое', medium: 'среднее', hard: 'сложное' }
 
 function MetricCard({ title, value, hint, color }) {
   return (
@@ -31,48 +36,60 @@ function MetricCard({ title, value, hint, color }) {
   )
 }
 
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontSize: 11, color: B.muted,
+      textTransform: 'uppercase', letterSpacing: '.06em',
+      fontWeight: 600, marginBottom: 8,
+    }}>{children}</div>
+  )
+}
+
+function LevelChip({ level }) {
+  const label = LEVEL_RU[level]
+  if (!label) return null
+  return (
+    <span style={{
+      fontSize: 10, color: B.muted, background: B.light,
+      padding: '1px 7px', borderRadius: 3, marginLeft: 8,
+      flexShrink: 0,
+    }}>{label}</span>
+  )
+}
+
+function pctColor(p) {
+  if (p === null) return B.muted
+  if (p >= 75) return '#1A7A3C'
+  if (p >= 50) return '#BA7517'
+  return '#9B1818'
+}
+
 export default function BlockVisualExtendedSummary({ row }) {
-  const [expanded, setExpanded] = useState(false)
-  const foundScore = parseScore(row['Визуал. найдено'])
+  const [showMissed, setShowMissed] = useState(false)
+
   const pctRaw = row['Визуал. %']
   const pct = pctRaw !== undefined && pctRaw !== null && pctRaw !== '' ? Number(pctRaw) : null
-  const bonus = row['Визуал. бонус']
-  const totalClicks = row['Визуал. всего кликов']
 
-  // Парсинг описаний из 'Сырые данные' (JSON)
-  let descriptions = []
+  // Богатые данные из 'Сырые данные'
+  let p = null
   try {
     const raw = row['Сырые данные']
-    if (raw) {
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-      if (parsed && Array.isArray(parsed.raw_vis_marks)) {
-        descriptions = parsed.raw_vis_marks
-          .filter(function (m) { return m && m.note && String(m.note).trim().length > 0 })
-          .map(function (m) {
-            return {
-              note: String(m.note).trim(),
-              kind: m.kind || (m.hit ? 'hit' : 'miss'),
-              scene: m.scene !== undefined ? m.scene : null,
-            }
-          })
-      }
-    }
+    if (raw) p = typeof raw === 'string' ? JSON.parse(raw) : raw
   } catch (e) {
-    // невалидный JSON - игнорируем, просто не покажем описания
+    p = null
   }
 
-  function pctColor(p) {
-    if (p === null) return B.muted
-    if (p >= 75) return '#1A7A3C'
-    if (p >= 50) return '#BA7517'
-    return '#9B1818'
-  }
+  const hasNew = !!(p && p.vis_found_count !== undefined && p.vis_total_count !== undefined)
 
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+  // ── Старая запись (до обновления scoring): мягкий фолбэк ──
+  if (!hasNew) {
+    const foundScore = parseScore(row['Визуал. найдено'])
+    const bonus = row['Визуал. бонус']
+    return (
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <MetricCard
-          title="Найдено нарушений"
+          title="Найдено (взвеш.)"
           value={foundScore ? foundScore.score + ' / ' + foundScore.max : '—'}
           hint={pct !== null ? pct + '%' : null}
           color={pctColor(pct)}
@@ -82,66 +99,118 @@ export default function BlockVisualExtendedSummary({ row }) {
           value={bonus !== undefined && bonus !== null && bonus !== '' ? String(bonus) : '—'}
           hint="осмысленные клики вне списка"
         />
+        <div style={{ flex: 1, minWidth: 200, fontSize: 12, color: B.muted }}>
+          Запись сделана до обновления визуального блока — детальный разбор доступен для новых прохождений.
+        </div>
+      </div>
+    )
+  }
+
+  // ── Новая запись: полный разбор ──
+  const foundCount = p.vis_found_count
+  const totalCount = p.vis_total_count
+  const hits   = p.vis_hits !== undefined ? p.vis_hits : foundCount
+  const bonusCount = p.vis_bonus_count !== undefined ? p.vis_bonus_count : 0
+  const misses = p.vis_false_positives !== undefined ? p.vis_false_positives : 0
+  const foundList  = Array.isArray(p.vis_found_list)  ? p.vis_found_list  : []
+  const missedList = Array.isArray(p.vis_missed_list) ? p.vis_missed_list : []
+  const bonusList  = Array.isArray(p.vis_bonus_list)  ? p.vis_bonus_list  : []
+
+  const missedShown = showMissed ? missedList : missedList.slice(0, 3)
+
+  return (
+    <div>
+      {/* Метрики: счёт и балл — раздельно */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <MetricCard
-          title="Всего кликов"
-          value={totalClicks !== undefined && totalClicks !== null && totalClicks !== '' ? String(totalClicks) : '—'}
-          hint="включая промахи"
+          title="Нарушений найдено"
+          value={foundCount + ' / ' + totalCount}
+          color={B.text}
+        />
+        <MetricCard
+          title="Взвешенный балл"
+          value={pct !== null ? pct + '%' : '—'}
+          color={pctColor(pct)}
         />
       </div>
 
-      {descriptions.length > 0 && (
-        <div>
-          <button
-            onClick={function () { setExpanded(!expanded) }}
-            style={{
-              background: 'transparent', border: 'none',
-              cursor: 'pointer', padding: 0,
-              fontSize: 12, color: B.primary, fontWeight: 600,
-              fontFamily: 'inherit', marginBottom: 8,
-            }}
-          >
-            {expanded ? '▾' : '▸'} Показать описания кандидата ({descriptions.length})
-          </button>
+      {/* Клики — целыми числами */}
+      <div style={{
+        display: 'flex', gap: 18, flexWrap: 'wrap',
+        padding: '10px 0',
+        borderTop: '1px solid ' + B.border,
+        borderBottom: '1px solid ' + B.border,
+        marginBottom: 16, fontSize: 13, color: B.muted,
+      }}>
+        <span>Попаданий: <strong style={{ color: B.text, fontWeight: 700 }}>{hits}</strong></span>
+        <span>Осмысленных мимо: <strong style={{ color: B.text, fontWeight: 700 }}>{bonusCount}</strong></span>
+        <span>Промахов: <strong style={{ color: B.text, fontWeight: 700 }}>{misses}</strong></span>
+      </div>
 
-          {expanded && (
-            <div style={{
-              background: B.white,
-              border: '1px solid ' + B.border,
-              borderRadius: SHAPE.input,
-              padding: '12px 16px',
-            }}>
-              {descriptions.map(function (d, i) {
-                const isHit = d.kind === 'hit'
-                const isBonus = d.kind === 'bonus'
-                const tagColor = isHit ? '#1A7A3C' : (isBonus ? '#BA7517' : B.muted)
-                const tagBg = isHit ? '#E8F5EE' : (isBonus ? '#FFF6E5' : B.light)
-                const tagLabel = isHit ? 'попадание' : (isBonus ? 'бонус' : 'промах')
-                return (
-                  <div key={i} style={{
-                    display: 'flex', gap: 12,
-                    padding: '10px 0',
-                    borderBottom: i < descriptions.length - 1 ? '1px solid ' + B.border : 'none',
-                    fontSize: 13, lineHeight: 1.5,
-                  }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700,
-                      color: tagColor, background: tagBg,
-                      padding: '2px 8px', borderRadius: 3,
-                      textTransform: 'uppercase', letterSpacing: '.04em',
-                      flexShrink: 0, height: 18, lineHeight: '14px',
-                      marginTop: 2,
-                    }}>{tagLabel}</span>
-                    <span style={{ color: B.text, wordBreak: 'break-word' }}>{d.note}</span>
-                    {d.scene !== null && d.scene !== undefined && (
-                      <span style={{ color: B.muted, fontSize: 11, flexShrink: 0 }}>
-                        сцена {d.scene}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+      {/* Найдено */}
+      {foundList.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <SectionLabel>Найдено</SectionLabel>
+          {foundList.map(function (f, i) {
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '5px 0', fontSize: 13, color: B.text }}>
+                <span style={{ color: '#1A7A3C', marginRight: 8, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                <span style={{ wordBreak: 'break-word' }}>{f.label}</span>
+                <LevelChip level={f.level} />
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Пропущено */}
+      {missedList.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <SectionLabel>Пропущено</SectionLabel>
+          {missedShown.map(function (m, i) {
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '5px 0', fontSize: 13, color: B.muted }}>
+                <span style={{ marginRight: 8, flexShrink: 0 }}>–</span>
+                <span style={{ wordBreak: 'break-word' }}>{m.label}</span>
+                <LevelChip level={m.level} />
+              </div>
+            )
+          })}
+          {missedList.length > 3 && (
+            <button
+              onClick={function () { setShowMissed(!showMissed) }}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                padding: '4px 0', fontSize: 12, color: B.primary,
+                fontWeight: 600, fontFamily: 'inherit',
+              }}
+            >
+              {showMissed ? 'Свернуть' : 'Ещё ' + (missedList.length - 3)}
+            </button>
           )}
+        </div>
+      )}
+
+      {/* Осмысленные наблюдения вне списка (бонус) */}
+      {bonusList.length > 0 && (
+        <div>
+          <SectionLabel>Осмысленные наблюдения вне списка</SectionLabel>
+          {bonusList.map(function (b, i) {
+            const text = b.explanation || b.note || ''
+            if (!text) return null
+            return (
+              <div key={i} style={{
+                background: '#FFF6E5',
+                borderLeft: '3px solid ' + B.amber,
+                borderRadius: SHAPE.input,
+                padding: '10px 14px', marginBottom: 8,
+                fontSize: 13, color: B.text, fontStyle: 'italic',
+                lineHeight: 1.5,
+              }}>
+                «{text}»
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
