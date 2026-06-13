@@ -153,92 +153,48 @@ export function calcDiscOD(answers) {
 }
 
 /**
- * Визуальный OD: процент найденных нарушений (с весом по сложности).
- * Различает ТРИ категории кликов:
- *  - попадание в наше нарушение → основной балл
- *  - клик мимо с содержательным описанием (≥20 символов) → bonus_observations (потенциальный бонус)
- *  - клик мимо без содержательного описания → false_positives (штрафной флаг)
+ * Визуальный OD (новая модель) — БЕЗ привязки к координатам.
+ * Собирает примечания кандидата по сценам + скрытый эталон сцены
+ * (нарушения с уровнем сложности). Реального «найдено/пропущено» здесь нет —
+ * сверку примечаний с эталоном делает AI-слой (Apps Script), результат
+ * пишется в строку позже. Здесь — только сырьё + эвристический placeholder.
  */
 export function calcVisualOD(answers, scenes) {
-  const weights = { easy: 1, medium: 1.5, hard: 2 }
-  const MIN_EXPL = 20
-  let score = 0, max = 0, falsePositives = 0, bonusObservations = 0
-  const foundViolations = []
-  const bonusList       = []   // массив { sceneId, x, y, explanation } — для ручной оценки в HR-панели
-  const allMarks        = []
+  const observations = []   // [{ sceneId, title, notes: [{x,y,explanation}] }]
+  const groundTruth  = []   // [{ sceneId, title, violations: [{label, level}] }] — скрытый эталон
+  const allMarks     = []
+  let observationCount = 0
+  let totalViolations  = 0
 
   scenes.forEach((scene, si) => {
     const marks = answers[si] || []
-    // Максимум по сцене
-    scene.violations.forEach(v => { max += weights[v.level] || 1 })
-    // Прохождение по отметкам кандидата
+    const notes = []
     marks.forEach(mark => {
-      allMarks.push({ sceneId: scene.id, ...mark })
       const exp = (mark.explanation || '').trim()
-      const hasContent = exp.length >= MIN_EXPL
-
-      if (mark.violationId) {
-        // Попадание в наше нарушение
-        const violation = scene.violations.find(v => v.id === mark.violationId)
-        if (violation) {
-          const alreadyFound = foundViolations.some(f =>
-            f.sceneId === scene.id && f.violationId === mark.violationId)
-          if (!alreadyFound) {
-            score += weights[violation.level] || 1
-            foundViolations.push({
-              sceneId: scene.id,
-              violationId: mark.violationId,
-              label: violation.label,
-              level: violation.level,
-              explanation: mark.explanation,
-            })
-          }
-        }
-      } else {
-        // Клик мимо — категория зависит от описания
-        if (hasContent) {
-          // Кандидат увидел что-то, что мы не заложили, и описал — это потенциальный бонус
-          bonusObservations++
-          bonusList.push({
-            sceneId: scene.id,
-            x: mark.x, y: mark.y,
-            explanation: mark.explanation,
-          })
-        } else {
-          // Клик мимо без описания — спам
-          falsePositives++
-        }
+      allMarks.push({ sceneId: scene.id, x: mark.x, y: mark.y, explanation: exp })
+      if (exp.length > 0) {
+        notes.push({ x: mark.x, y: mark.y, explanation: exp })
+        observationCount++
       }
     })
+    observations.push({ sceneId: scene.id, title: scene.title, notes })
+
+    const violations = (scene.violations || []).map(v => ({ label: v.label, level: v.level }))
+    totalViolations += violations.length
+    groundTruth.push({ sceneId: scene.id, title: scene.title, violations })
   })
 
-  const pct = max > 0 ? Math.round((score / max) * 100) : 0
-
-  // Целые счётчики и списки нарушений — для читаемой HR-карточки
-  let totalCount = 0
-  const missedList = []
-  scenes.forEach(scene => {
-    scene.violations.forEach(v => {
-      totalCount++
-      const wasFound = foundViolations.some(f => f.sceneId === scene.id && f.violationId === v.id)
-      if (!wasFound) missedList.push({ sceneId: scene.id, label: v.label, level: v.level })
-    })
-  })
-  const foundList = foundViolations.map(f => ({ sceneId: f.sceneId, label: f.label, level: f.level }))
-  const foundCount = foundViolations.length
-  const totalClicks = foundCount + bonusObservations + falsePositives
+  // Эвристический placeholder по охвату (до AI-оценки): сколько примечаний vs нарушений.
+  const pct = totalViolations > 0
+    ? Math.min(100, Math.round((observationCount / totalViolations) * 100))
+    : 0
 
   return {
-    score, max, pct,
-    foundCount, totalCount,
-    hits: foundCount,
-    totalClicks,
-    falsePositives,
-    bonusObservations,
-    bonusList,
-    foundList,
-    missedList,
-    foundViolations,
+    pct,                 // placeholder, AI может переписать
+    observationCount,
+    totalViolations,
+    observations,        // сырые примечания — первичны
+    groundTruth,         // скрытый эталон для AI
     rawMarks: allMarks,
   }
 }
@@ -363,20 +319,14 @@ export function buildPayloadOD({
     disc_target_match: discResult.inTargetZone,
     disc_flags: discResult.flags.join(','),
 
-    // Визуальный
-    vis_score:           visResult.score,
-    vis_max:             visResult.max,
-    vis_pct:             visResult.pct,
-    vis_false_positives: visResult.falsePositives,
-    vis_bonus_count:     visResult.bonusObservations,
-    vis_found_count:     visResult.foundCount,
-    vis_total_count:     visResult.totalCount,
-    vis_hits:            visResult.hits,
-    vis_total_clicks:    visResult.totalClicks,
-    vis_found_list:      visResult.foundList,
-    vis_missed_list:     visResult.missedList,
-    vis_bonus_list:      visResult.bonusList,
-    raw_vis_marks:       visResult.rawMarks,
+    // Визуальный (новая модель: примечания + скрытый эталон для AI-сверки)
+    vis_pct:               visResult.pct,             // эвристический placeholder до AI
+    vis_observation_count: visResult.observationCount,
+    vis_total_count:       visResult.totalViolations,
+    vis_observations:      visResult.observations,     // примечания по сценам (сырое — первично)
+    vis_ground_truth:      visResult.groundTruth,      // скрытый эталон сцен для AI
+    vis_ai_eval:           'PENDING',                  // AI-оценка визуала ещё не запущена
+    raw_vis_marks:         visResult.rawMarks,
 
     // Структурирование (4 поля) — сырые ответы первичны
     struct_questions:     structuringAnswers.questions     || '',
