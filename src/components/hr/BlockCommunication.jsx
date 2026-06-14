@@ -1,6 +1,9 @@
 // Блок 5 — Неудобный разговор. Три сырых ответа кандидата по кейсам.
+// Показываем первый кейс, остальные — по клику «ещё».
 
+import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
+import { ShowMore } from './Collapsible.jsx'
 
 const CASES = [
   { key: 'Комм. кейс 1', label: 'Эскалация неприятной новости',          weight: 25 },
@@ -8,10 +11,16 @@ const CASES = [
   { key: 'Комм. кейс 3', label: 'Давление вниз на сотрудника',           weight: 25 },
 ]
 
+const PREVIEW_N = 1
+
 export default function BlockCommunication({ row }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? CASES : CASES.slice(0, PREVIEW_N)
+  const rest = CASES.length - PREVIEW_N
+
   return (
     <div>
-      {CASES.map(function (c, i) {
+      {shown.map(function (c, i) {
         const answer = row[c.key]
         return (
           <div key={c.key} style={{ marginBottom: 18 }}>
@@ -47,8 +56,16 @@ export default function BlockCommunication({ row }) {
         )
       })}
 
+      <ShowMore
+        count={rest}
+        expanded={expanded}
+        onToggle={function () { setExpanded(!expanded) }}
+        moreLabel={'Ещё ' + rest + ' кейса'}
+        lessLabel="Свернуть кейсы"
+      />
+
       <div style={{
-        marginTop: 20,
+        marginTop: 16,
         padding: '12px 14px',
         background: '#F0F4FA',
         borderLeft: '3px solid ' + B.primary,
