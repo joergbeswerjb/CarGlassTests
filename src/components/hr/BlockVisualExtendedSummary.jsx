@@ -10,8 +10,10 @@ import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
 import { parseScore } from '../../utils/hr-format.js'
 import { generateVisualEval } from '../../utils/api.js'
+import { ShowMore } from './Collapsible.jsx'
 
 const LEVEL_RU = { easy: 'лёгкое', medium: 'среднее', hard: 'сложное' }
+const FOUND_PREVIEW_N = 4
 
 function pctColor(p) {
   if (p === null || p === undefined) return B.muted
@@ -112,6 +114,7 @@ export default function BlockVisualExtendedSummary({ row }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showMissed, setShowMissed] = useState(false)
+  const [showAllFound, setShowAllFound] = useState(false)
 
   const id = row['ID']
   const role = row['Роль']
@@ -176,9 +179,9 @@ export default function BlockVisualExtendedSummary({ row }) {
         {foundList.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <SectionLabel>Найдено</SectionLabel>
-            {foundList.map(function (f, i) {
+            {(showAllFound ? foundList : foundList.slice(0, FOUND_PREVIEW_N)).map(function (f, i, arr) {
               return (
-                <div key={i} style={{ padding: '8px 0', borderBottom: i < foundList.length - 1 ? '1px solid ' + B.light : 'none' }}>
+                <div key={i} style={{ padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid ' + B.light : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: B.text }}>
                     <span style={{ color: '#1A7A3C', marginRight: 8, fontWeight: 700, flexShrink: 0 }}>✓</span>
                     <span style={{ wordBreak: 'break-word', flex: 1 }}>{f.label}</span>
@@ -193,6 +196,13 @@ export default function BlockVisualExtendedSummary({ row }) {
                 </div>
               )
             })}
+            <ShowMore
+              count={foundList.length - FOUND_PREVIEW_N}
+              expanded={showAllFound}
+              onToggle={function () { setShowAllFound(!showAllFound) }}
+              moreLabel={'Ещё ' + (foundList.length - FOUND_PREVIEW_N)}
+              lessLabel="Свернуть"
+            />
           </div>
         )}
 
