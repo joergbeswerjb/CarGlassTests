@@ -1,5 +1,7 @@
 // CandidateCardPage - детальная карточка кандидата.
 // Диспетчер: читает cfg из hr-config, маппит типы блоков на компоненты, рендерит.
+// Блоки 1-5 свёрнуты в Collapsible (метрика/превью в заголовке); скоркард всегда открыт.
+// Глобальный тумблер «Развернуть всё / Свернуть всё» синхронизирует все блоки.
 
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -10,6 +12,7 @@ import { formatDateLong } from '../utils/hr-format.js'
 
 // Компоненты блоков
 import CardSummary from '../components/hr/CardSummary.jsx'
+import Collapsible from '../components/hr/Collapsible.jsx'
 import BlockCognitiveExtendedSummary from '../components/hr/BlockCognitiveExtendedSummary.jsx'
 import BlockDiscExtendedSummary from '../components/hr/BlockDiscExtendedSummary.jsx'
 import BlockVisualExtendedSummary from '../components/hr/BlockVisualExtendedSummary.jsx'
@@ -42,6 +45,45 @@ const BLOCK_TITLES = {
   'communication':      { num: '5', title: 'Неудобный разговор' },
 }
 
+// Превью первой строки сырого ответа (для свёрнутого заголовка)
+function truncate(s, n) {
+  if (s === undefined || s === null) return ''
+  const t = String(s).trim()
+  if (!t) return ''
+  return t.length > n ? '«' + t.slice(0, n) + '…»' : '«' + t + '»'
+}
+
+// Метрика/превью для свёрнутого заголовка блока
+function blockMeta(blockType, row) {
+  if (blockType === 'cognitive-extended' || blockType === 'cognitive') {
+    const sc = row['Когнитивный']
+    const pct = row['Когн. %']
+    const parts = []
+    if (sc) parts.push(String(sc))
+    if (pct !== '' && pct !== undefined && pct !== null) parts.push(pct + '%')
+    return parts.join(' · ')
+  }
+  if (blockType === 'disc-extended' || blockType === 'disc') {
+    const osn = row['DISC осн.']
+    const vtor = row['DISC втор.']
+    if (osn) return 'осн. ' + osn + (vtor ? ' · втор. ' + vtor : '')
+    return ''
+  }
+  if (blockType === 'visual-extended' || blockType === 'visual') {
+    const found = row['Визуал. найдено']
+    const pct = row['Визуал. %']
+    if (found) return String(found) + (pct !== '' && pct !== undefined && pct !== null ? ' · ' + pct + '%' : '')
+    return 'не оценён'
+  }
+  if (blockType === 'structuring') {
+    return truncate(row['Структ. вопросы'], 38)
+  }
+  if (blockType === 'communication') {
+    return truncate(row['Комм. кейс 1'], 38)
+  }
+  return ''
+}
+
 // ============================================================
 // Header (общий с HRPage стиль)
 // ============================================================
@@ -60,42 +102,6 @@ function Header() {
         HR-панель · Оценка кандидатов
       </div>
     </header>
-  )
-}
-
-// ============================================================
-// Section - обёртка для каждого блока карточки
-// ============================================================
-function Section({ num, title, children }) {
-  return (
-    <div style={{
-      background: B.white,
-      border: '1px solid ' + B.border,
-      borderRadius: SHAPE.card,
-      padding: '24px',
-      marginBottom: 16,
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 12,
-        marginBottom: 18, paddingBottom: 14,
-        borderBottom: '1px solid ' + B.border,
-      }}>
-        <span style={{
-          fontSize: 11, color: B.muted,
-          textTransform: 'uppercase', letterSpacing: '.08em',
-          fontWeight: 600,
-        }}>
-          Блок {num}
-        </span>
-        <h2 style={{
-          fontSize: 17, fontWeight: 700, color: B.text,
-          margin: 0,
-        }}>
-          {title}
-        </h2>
-      </div>
-      {children}
-    </div>
   )
 }
 
@@ -137,7 +143,19 @@ export default function CandidateCardPage() {
   const [row, setRow] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Глобальный тумблер «Развернуть/Свернуть всё»
+  const [forceOpen, setForceOpen] = useState(null)
+  const [forceKey, setForceKey] = useState(0)
+  const [allOpen, setAllOpen] = useState(false)
+
   const cfg = HR_CONFIG[roleSlug]
+
+  function toggleAll() {
+    const next = !allOpen
+    setAllOpen(next)
+    setForceOpen(next)
+    setForceKey(function (k) { return k + 1 })
+  }
 
   useEffect(function () {
     if (!cfg) {
@@ -274,15 +292,42 @@ export default function CandidateCardPage() {
           </div>
         </div>
 
-        {/* Краткая сводка */}
+        {/* Краткая сводка — всегда открыта */}
         <CardSummary row={row} cfg={cfg} />
 
-        {/* Секции блоков */}
+        {/* Глобальный тумблер */}
+        {blocks.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '14px 0 12px' }}>
+            <button
+              onClick={toggleAll}
+              style={{
+                background: 'transparent', border: '1px solid ' + B.border,
+                borderRadius: SHAPE.input, cursor: 'pointer',
+                color: B.muted, fontSize: 12, fontWeight: 600,
+                padding: '6px 14px', fontFamily: 'inherit',
+              }}
+            >
+              {allOpen ? 'Свернуть всё' : 'Развернуть всё'}
+            </button>
+          </div>
+        )}
+
+        {/* Секции блоков — свёрнуты в Collapsible */}
         {blocks.map(function (blockType) {
           const Renderer = BLOCK_RENDERERS[blockType]
           const titleInfo = BLOCK_TITLES[blockType] || { num: '?', title: blockType }
+          const isPreview = blockType === 'structuring' || blockType === 'communication'
           return (
-            <Section key={blockType} num={titleInfo.num} title={titleInfo.title}>
+            <Collapsible
+              key={blockType}
+              name={'Блок ' + titleInfo.num}
+              title={titleInfo.title}
+              meta={blockMeta(blockType, row)}
+              metaPreview={isPreview}
+              defaultOpen={false}
+              forceOpen={forceOpen}
+              forceKey={forceKey}
+            >
               {Renderer ? (
                 <Renderer row={row} cfg={cfg} />
               ) : (
@@ -296,11 +341,11 @@ export default function CandidateCardPage() {
                   Отображение этого блока для роли «{cfg.label}» будет добавлено позже.
                 </div>
               )}
-            </Section>
+            </Collapsible>
           )
         })}
 
-        {/* AI-секции */}
+        {/* AI-секции (сворачивание — на Шаге 4) */}
         {aiSections.length > 0 && (
           <div style={{ marginTop: 32 }}>
             <div style={{
