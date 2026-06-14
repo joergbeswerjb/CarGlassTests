@@ -3,6 +3,9 @@
 // дёргаем generate_flags, пока идёт вызов - индикатор, при ошибке - retry.
 // Промпт OD-специфичный, поэтому генерация включена только для ролей из
 // FLAGS_ROLES. При добавлении senior-ролей перенести в конфиг роли (cfg.ai.flags).
+//
+// Каждый флаг свёрнут до «severity + тип»; разбор (цитата + объяснение +
+// привязка к роли) раскрывается по клику на заголовок флага.
 
 import { useState, useEffect } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
@@ -30,42 +33,82 @@ function parseStored(raw) {
   }
 }
 
+function Chevron({ open }) {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 24 24"
+      style={{
+        flexShrink: 0,
+        transition: 'transform .15s',
+        transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+      }}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" fill="none" stroke={B.muted} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function FlagCard({ flag }) {
   const sev = SEV[flag.severity] || SEV.yellow
+  const [open, setOpen] = useState(false)
+  const [hover, setHover] = useState(false)
+
   return (
     <div style={{
       background: B.white, border: '1px solid ' + B.border,
-      borderRadius: SHAPE.card, padding: '16px 18px', marginBottom: 12,
+      borderRadius: SHAPE.card, marginBottom: 12, overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <button
+        onClick={function () { setOpen(!open) }}
+        onMouseEnter={function () { setHover(true) }}
+        onMouseLeave={function () { setHover(false) }}
+        aria-expanded={open}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '14px 18px',
+          background: hover ? B.light : 'transparent',
+          border: 'none', cursor: 'pointer', textAlign: 'left',
+          fontFamily: 'inherit', transition: 'background .12s',
+        }}
+      >
         <span style={{
           fontSize: 11, fontWeight: 600, color: sev.fg, background: sev.bg,
           border: '1px solid ' + sev.border, padding: '3px 10px',
           borderRadius: 4, letterSpacing: '.03em', textTransform: 'uppercase',
+          flexShrink: 0,
         }}>
           {sev.label}
         </span>
         <span style={{ fontSize: 15, fontWeight: 700, color: B.text }}>
           {flag.type}
         </span>
-      </div>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          <Chevron open={open} />
+        </span>
+      </button>
 
-      <div style={{
-        background: B.light, borderRadius: SHAPE.input, padding: '8px 12px',
-        fontSize: 14, color: B.muted, fontStyle: 'italic', lineHeight: 1.6,
-        marginBottom: 10,
-      }}>
-        {'\u00AB' + flag.quote + '\u00BB'}
-      </div>
+      {open && (
+        <div style={{ padding: '0 18px 16px' }}>
+          <div style={{
+            background: B.light, borderRadius: SHAPE.input, padding: '8px 12px',
+            fontSize: 14, color: B.muted, fontStyle: 'italic', lineHeight: 1.6,
+            marginBottom: 10,
+          }}>
+            {'\u00AB' + flag.quote + '\u00BB'}
+          </div>
 
-      <p style={{ fontSize: 14, color: B.text, lineHeight: 1.6, margin: '0 0 10px' }}>
-        {flag.explanation}
-      </p>
+          <p style={{ fontSize: 14, color: B.text, lineHeight: 1.6, margin: '0 0 10px' }}>
+            {flag.explanation}
+          </p>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.5 }}>
-        <span style={{ color: B.muted, whiteSpace: 'nowrap' }}>Для роли:</span>
-        <span style={{ color: sev.fg }}>{flag.role_implication}</span>
-      </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.5 }}>
+            <span style={{ color: B.muted, whiteSpace: 'nowrap' }}>Для роли:</span>
+            <span style={{ color: sev.fg }}>{flag.role_implication}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
