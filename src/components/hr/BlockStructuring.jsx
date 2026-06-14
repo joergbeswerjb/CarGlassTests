@@ -1,6 +1,9 @@
 // Блок 4 — Структурирование идеи. Четыре сырых ответа кандидата.
+// Показываем первые 2 поля, остальные — по клику «ещё».
 
+import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
+import { ShowMore } from './Collapsible.jsx'
 
 const FIELDS = [
   { key: 'Структ. вопросы',      label: 'Какие ключевые вопросы задать руководителю?' },
@@ -9,10 +12,16 @@ const FIELDS = [
   { key: 'Структ. улучшение',    label: 'Чем дополнить или улучшить идею?' },
 ]
 
+const PREVIEW_N = 2
+
 export default function BlockStructuring({ row }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? FIELDS : FIELDS.slice(0, PREVIEW_N)
+  const rest = FIELDS.length - PREVIEW_N
+
   return (
     <div>
-      {FIELDS.map(function (f) {
+      {shown.map(function (f) {
         const answer = row[f.key]
         return (
           <div key={f.key} style={{ marginBottom: 18 }}>
@@ -39,9 +48,17 @@ export default function BlockStructuring({ row }) {
         )
       })}
 
+      <ShowMore
+        count={rest}
+        expanded={expanded}
+        onToggle={function () { setExpanded(!expanded) }}
+        moreLabel={'Ещё ' + rest + ' поля'}
+        lessLabel="Свернуть поля"
+      />
+
       {/* AI оценка - заглушка */}
       <div style={{
-        marginTop: 20,
+        marginTop: 16,
         padding: '12px 14px',
         background: '#F0F4FA',
         borderLeft: '3px solid ' + B.primary,
