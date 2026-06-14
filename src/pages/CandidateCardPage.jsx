@@ -70,6 +70,18 @@ function blockMeta(blockType, row) {
     return ''
   }
   if (blockType === 'visual-extended' || blockType === 'visual') {
+    // Источник истины — тот же JSON, что читает тело блока («AI оценка визуал»).
+    const raw = row['AI оценка визуал']
+    if (raw) {
+      try {
+        const o = typeof raw === 'string' ? JSON.parse(raw) : raw
+        if (o && o.found_count !== undefined && Array.isArray(o.found_list)) {
+          const p = typeof o.pct === 'number' ? o.pct : null
+          return o.found_count + '/' + o.total_count + (p !== null ? ' · ' + p + '%' : '')
+        }
+      } catch (e) { /* невалидный JSON — упадём в запасной вариант ниже */ }
+    }
+    // Запасной вариант — старые колонки-помощники
     const found = row['Визуал. найдено']
     const pct = row['Визуал. %']
     if (found) return String(found) + (pct !== '' && pct !== undefined && pct !== null ? ' · ' + pct + '%' : '')
