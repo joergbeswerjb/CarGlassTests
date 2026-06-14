@@ -1,6 +1,7 @@
 // ─── Блок 4: Структурирование сырой идеи ─────────────────────────────────────
 // 4 открытых поля, минимум 30 символов на каждое.
 // Кнопка «Дальше» неактивна, пока не все поля заполнены.
+// Переход к Блоку 5 односторонний — предупреждаем заранее.
 
 import { useState } from 'react'
 import { B } from '../../utils/brand.js'
@@ -111,6 +112,17 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
           </div>
         )
       })}
+
+      {/* Предупреждение об одностороннем переходе */}
+      <div style={{
+        fontSize: 12, color: '#7A4D0F',
+        background: '#FFF6E5',
+        borderLeft: '3px solid ' + B.amber,
+        borderRadius: 6,
+        padding: '8px 12px', marginTop: 8, marginBottom: 4,
+      }}>
+        После перехода к следующему блоку вернуться к этим ответам нельзя.
+      </div>
 
       {/* Кнопка «Дальше» */}
       <div style={{
