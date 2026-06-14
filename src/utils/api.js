@@ -1,4 +1,4 @@
-// ─── API: Google Sheets через Apps Script (v7-b3) ───────────────────────────
+// ─── API: Google Sheets через Apps Script (v9) ──────────────────────────────
 // Apps Script возвращает: { ok: true, ... } при успехе или { error: '...' } при ошибке.
 // GET для чтения, POST с JSON body для записи, удаления и AI-генерации.
 const SHEETS_URL = import.meta.env.VITE_SHEETS_URL
@@ -99,4 +99,14 @@ export async function generateScript(id, role) {
 export async function generateAnalysis(id, role) {
   const json = await postAction({ action: 'generate_analysis', id: id, role: role }, 'Generate analysis failed')
   return json.analysis || null
+}
+
+/**
+ * Оценить визуальный блок (без координат): AI сверяет примечания кандидата
+ * со скрытым эталоном сцены, код считает веса. Возвращает объект-оценку
+ * (found/missed/bonus/noise + pct + quality) и пишет её в строку.
+ */
+export async function generateVisualEval(id, role) {
+  const json = await postAction({ action: 'generate_visual_eval', id: id, role: role }, 'Generate visual eval failed')
+  return json.visual || null
 }
