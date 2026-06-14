@@ -1,9 +1,14 @@
 // ─── Блок 2 (OD): DISC ────────────────────────────────────────────────────────
 // 8 фиксированных групп (6 ipsative + 2 ловушки), выбор most/least.
+// Нет правильных/неправильных ответов — оцениваем поведенческий стиль.
+// «Меньше всего» нейтрального (сланцевого) цвета, не красного: это не «ошибка».
 
 import { useState } from 'react'
 import { B, SHAPE } from '../../utils/brand.js'
 import BrandedButton from '../BrandedButton.jsx'
+
+const SLATE    = '#5E6B7A'
+const SLATE_BG = '#EDF0F4'
 
 export default function BlockDiscOD({ questions, savedState, onComplete }) {
   const [currentIdx, setCurrentIdx] = useState(savedState?.currentIdx || 0)
@@ -60,9 +65,13 @@ export default function BlockDiscOD({ questions, savedState, onComplete }) {
       <h3 style={{ fontSize: 16, lineHeight: 1.5, color: B.text, marginTop: 0, marginBottom: 8 }}>
         {current.intro}
       </h3>
-      <p style={{ fontSize: 14, color: B.muted, marginBottom: 20 }}>
-        Выберите, что описывает вас <strong style={{ color: B.green }}>больше всего</strong> и{' '}
-        <strong style={{ color: B.amber }}>меньше всего</strong>.
+
+      <p style={{ fontSize: 13, color: B.muted, marginBottom: 6, lineHeight: 1.6 }}>
+        Здесь нет правильных и неправильных ответов — мы оцениваем поведенческий стиль. Отвечайте как есть.
+      </p>
+      <p style={{ fontSize: 14, color: B.text, marginBottom: 20, lineHeight: 1.6 }}>
+        Отметьте <strong style={{ color: B.green }}>одно</strong> утверждение «Больше всего» похоже на вас и{' '}
+        <strong style={{ color: SLATE }}>одно</strong> — «Меньше всего».
       </p>
 
       {/* Варианты */}
@@ -70,8 +79,8 @@ export default function BlockDiscOD({ questions, savedState, onComplete }) {
         {current.options.map((opt, i) => {
           const isMost  = most === i
           const isLeast = least === i
-          const bg = isMost ? B.greenBg : (isLeast ? B.redBg : B.white)
-          const border = isMost ? B.green : (isLeast ? B.red : B.border)
+          const bg = isMost ? B.greenBg : (isLeast ? SLATE_BG : B.white)
+          const border = isMost ? B.green : (isLeast ? SLATE : B.border)
 
           return (
             <div key={i} style={{
@@ -116,8 +125,8 @@ export default function BlockDiscOD({ questions, savedState, onComplete }) {
                     padding: '6px 10px',
                     fontSize: 12,
                     fontWeight: 600,
-                    border: `1.5px solid ${isLeast ? B.red : B.border}`,
-                    background: isLeast ? B.red : B.white,
+                    border: `1.5px solid ${isLeast ? SLATE : B.border}`,
+                    background: isLeast ? SLATE : B.white,
                     color: isLeast ? B.white : B.muted,
                     borderRadius: 4,
                     cursor: 'pointer',
