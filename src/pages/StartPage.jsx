@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { B, SHAPE } from '../styles/brand.js'
+import { B, SHAPE } from '../utils/brand.js'
 
 const FONT = "'Calibri Light', Calibri, 'Segoe UI', system-ui, sans-serif"
 
