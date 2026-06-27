@@ -1,11 +1,6 @@
 import { Link } from 'react-router-dom'
+import { B, SHAPE } from '../styles/brand.js'
 
-// ── Брендовые токены (инлайн, без зависимости от brand.js) ──────────────
-const BLUE = '#1763C6'        // синий акцент GlassGo — при необходимости поправь хекс
-const BLUE_DARK = '#0F4A99'
-const INK = '#1B2733'
-const MUTED = '#6B7886'
-const BORDER = '#E3E8EE'
 const FONT = "'Calibri Light', Calibri, 'Segoe UI', system-ui, sans-serif"
 
 const ROLES = [
@@ -26,9 +21,7 @@ export default function StartPage() {
     <div style={S.page}>
       <div style={S.wrap}>
         <div style={S.brandRow}>
-          <span style={S.brand}>
-            Glass<span style={{ color: BLUE }}>Go</span>
-          </span>
+          <img src={B.LOGO_PATH} alt="GlassGo" style={S.logo} />
         </div>
 
         <h1 style={S.h1}>Оценка кандидатов</h1>
@@ -39,7 +32,7 @@ export default function StartPage() {
             <Link key={r.slug} to={`/test/${r.slug}`} style={S.card} className="gg-card">
               <span style={S.cardTitle}>{r.title}</span>
               <span style={S.cardDesc}>{r.desc}</span>
-              <span style={S.cardCta}>Начать тест →</span>
+              <span style={S.cardCta} className="gg-cta">Начать тест →</span>
             </Link>
           ))}
         </div>
@@ -50,11 +43,16 @@ export default function StartPage() {
       </div>
 
       <style>{`
-        .gg-card { transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+        .gg-card {
+          transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+        }
         .gg-card:hover {
-          border-color: ${BLUE};
-          box-shadow: 0 6px 22px rgba(23,99,198,.12);
+          border-color: ${B.primary};
+          box-shadow: 0 8px 26px rgba(15,56,118,.12);
           transform: translateY(-2px);
+        }
+        .gg-card:hover .gg-cta {
+          background: ${B.primaryDark};
         }
       `}</style>
     </div>
@@ -64,9 +62,9 @@ export default function StartPage() {
 const S = {
   page: {
     minHeight: '100vh',
-    background: '#FFFFFF',
+    background: B.light,
     fontFamily: FONT,
-    color: INK,
+    color: B.text,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -74,31 +72,30 @@ const S = {
   },
   wrap: {
     width: '100%',
-    maxWidth: 760,
+    maxWidth: 780,
     textAlign: 'center',
   },
-  brandRow: { marginBottom: 28 },
-  brand: {
-    fontSize: 26,
-    fontWeight: 600,
-    letterSpacing: '.5px',
-    color: INK,
+  brandRow: { marginBottom: 30 },
+  logo: {
+    height: 44,
+    width: 'auto',
+    objectFit: 'contain',
   },
   h1: {
     fontSize: 30,
     fontWeight: 400,
     margin: '0 0 8px',
-    color: INK,
+    color: B.text,
   },
   sub: {
     fontSize: 16,
-    color: MUTED,
+    color: B.muted,
     margin: '0 0 36px',
     fontWeight: 300,
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
     gap: 18,
     textAlign: 'left',
   },
@@ -106,22 +103,31 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    padding: '24px 22px',
-    border: `1px solid ${BORDER}`,
-    borderRadius: 14,
-    background: '#FFFFFF',
+    padding: '26px 24px',
+    border: `1px solid ${B.border}`,
+    borderRadius: SHAPE.card,
+    background: B.white,
     textDecoration: 'none',
-    color: INK,
+    color: B.text,
   },
-  cardTitle: { fontSize: 19, fontWeight: 500, color: INK },
-  cardDesc: { fontSize: 14, lineHeight: 1.5, color: MUTED, fontWeight: 300 },
-  cardCta: { marginTop: 6, fontSize: 15, fontWeight: 500, color: BLUE },
-  footer: { marginTop: 40 },
+  cardTitle: { fontSize: 19, fontWeight: 500, color: B.text },
+  cardDesc: { fontSize: 14, lineHeight: 1.5, color: B.muted, fontWeight: 300 },
+  cardCta: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    padding: '9px 18px',
+    fontSize: 15,
+    fontWeight: 500,
+    color: B.white,
+    background: B.primary,
+    borderRadius: SHAPE.asymmetric,
+    transition: 'background .15s ease',
+  },
+  footer: { marginTop: 44 },
   hrLink: {
     fontSize: 13,
-    color: MUTED,
+    color: B.muted,
     textDecoration: 'none',
     fontWeight: 300,
-    borderBottom: `1px solid transparent`,
   },
 }
