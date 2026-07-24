@@ -18,6 +18,8 @@ import BlockDiscExtendedSummary from '../components/hr/BlockDiscExtendedSummary.
 import BlockVisualExtendedSummary from '../components/hr/BlockVisualExtendedSummary.jsx'
 import BlockStructuring from '../components/hr/BlockStructuring.jsx'
 import BlockCommunication from '../components/hr/BlockCommunication.jsx'
+import BlockCognitiveTieredSummary from '../components/hr/BlockCognitiveTieredSummary.jsx'
+import BlockDiscBasicSummary from '../components/hr/BlockDiscBasicSummary.jsx'
 import AISections from '../components/hr/AISections.jsx'
 
 // Маппинг типа блока на компонент-рендерер
@@ -25,6 +27,8 @@ const BLOCK_RENDERERS = {
   'cognitive-extended': BlockCognitiveExtendedSummary,
   'disc-extended':      BlockDiscExtendedSummary,
   'visual-extended':    BlockVisualExtendedSummary,
+  'cognitive-tiered':   BlockCognitiveTieredSummary,
+  'disc-basic':         BlockDiscBasicSummary,
   'structuring':        BlockStructuring,
   'communication':      BlockCommunication,
   // Classic-блоки для техника - добавим позже когда понадобятся
@@ -39,6 +43,8 @@ const BLOCK_TITLES = {
   'cognitive-extended': { num: '1', title: 'Когнитивный' },
   'disc':               { num: '2', title: 'DISC' },
   'disc-extended':      { num: '2', title: 'DISC' },
+  'cognitive-tiered':   { num: '1', title: 'Когнитивный' },
+  'disc-basic':         { num: '2', title: 'DISC — профиль' },
   'visual':             { num: '3', title: 'Визуальный стандарт' },
   'visual-extended':    { num: '3', title: 'Визуальный стандарт' },
   'structuring':        { num: '4', title: 'Структурирование идеи' },
@@ -55,6 +61,22 @@ function truncate(s, n) {
 
 // Метрика/превью для свёрнутого заголовка блока
 function blockMeta(blockType, row) {
+  if (blockType === 'cognitive-tiered') {
+    // Источник — те же колонки, что читает тело блока
+    const sc = row['Когнитивный']
+    const level = row['Ког. уровень']
+    const parts = []
+    if (sc) parts.push(String(sc))
+    if (level) parts.push('уровень: ' + level)
+    return parts.join(' · ')
+  }
+  if (blockType === 'disc-basic') {
+    const osn = row['DISC осн.']
+    const vtor = row['DISC втор.']
+    const trap = String(row['DISC ловушки'] || '').trim()
+    if (!osn) return ''
+    return osn + (vtor ? ' / ' + vtor : '') + (trap ? ' · ловушки: расхождение' : '')
+  }
   if (blockType === 'cognitive-extended' || blockType === 'cognitive') {
     const sc = row['Когнитивный']
     const pct = row['Когн. %']
@@ -153,6 +175,7 @@ export default function CandidateCardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [row, setRow] = useState(null)
+  const [allRows, setAllRows] = useState([])
   const [deleting, setDeleting] = useState(false)
 
   // Глобальный тумблер «Развернуть/Свернуть всё»
@@ -179,6 +202,7 @@ export default function CandidateCardPage() {
     setError(null)
     fetchAssessments(cfg.sheetName)
       .then(function (rows) {
+        setAllRows(rows)
         const found = rows.find(function (r) { return String(r['ID']) === String(id) })
         if (!found) {
           setError('not-found')
@@ -341,7 +365,7 @@ export default function CandidateCardPage() {
               forceKey={forceKey}
             >
               {Renderer ? (
-                <Renderer row={row} cfg={cfg} />
+                <Renderer row={row} rows={allRows} cfg={cfg} />
               ) : (
                 <div style={{
                   padding: '16px',

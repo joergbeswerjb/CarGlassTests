@@ -352,3 +352,155 @@ export function buildPayloadOD({
     breakdown:   overallResult.breakdown,
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── BASIC (office-universal: когнитивка по тирам + описательный DISC) ──
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Когнитивный блок с тирами.
+ * Итог — не одно число, а раскладка «докуда дошёл»: сколько взято в каждом тире.
+ * Гейт — только базовый тир (низкий пол, общий для всех вакансий).
+ */
+export function calcCognitiveTiered(result, config) {
+  const answers = result.answers || []
+  const questions = result.questions || []
+
+  const tiers = {}
+  config.tierOrder.forEach(function (tier) {
+    const total = questions.filter(function (q) { return q.tier === tier }).length
+    const given = answers.filter(function (a) { return a.tier === tier })
+    const score = given.filter(function (a) { return a.isCorrect }).length
+    tiers[tier] = {
+      score: score,
+      max: total,
+      pct: total > 0 ? Math.round((score / total) * 100) : 0,
+      label: config.tierLabels[tier] || tier,
+    }
+  })
+
+  const score = answers.filter(function (a) { return a.isCorrect }).length
+  const max = questions.length
+  const pct = max > 0 ? Math.round((score / max) * 100) : 0
+
+  // Уровень кандидата — самый высокий тир, взятый не ниже порога.
+  // Подписи берутся из ceilingLabels, а не из названий тиров.
+  const labels = config.ceilingLabels || config.tierLabels
+  let ceiling = config.ceilingNone || '—'
+  config.tierOrder.forEach(function (tier) {
+    if (tiers[tier].pct >= config.ceilingThresholdPct) ceiling = labels[tier] || tiers[tier].label
+  })
+
+  // Гейт по базовому тиру
+  const gateTier = tiers[config.gate.tier]
+  const gatePassed = gateTier ? gateTier.score >= config.gate.minCorrect : false
+
+  return {
+    score: score,
+    max: max,
+    pct: pct,
+    tiers: tiers,
+    ceiling: ceiling,
+    unanswered: result.unanswered !== undefined ? result.unanswered : (max - answers.length),
+    timeSec: result.totalTime || 0,
+    timeOk: result.timeOk !== false,
+    gatePassed: gatePassed,
+    gateReason: gatePassed ? '' : 'Базовый тир ниже минимума (' +
+      (gateTier ? gateTier.score : 0) + '/' + (gateTier ? gateTier.max : 0) +
+      ', нужно ' + config.gate.minCorrect + ')',
+  }
+}
+
+/**
+ * DISC описательный (office-universal).
+ * Отличия от calcDiscOD: в баллы идут только зачётные группы (ловушки исключены),
+ * границы теоретического диапазона берутся из конфига роли, а не хардкодятся.
+ * Целевого профиля нет — вердикт «подходит/не подходит» не выводится.
+ */
+export function calcDiscBasic(answers, discConfig) {
+  const raw = { D: 0, I: 0, S: 0, C: 0 }
+  const scoredTypes = discConfig.scoredTypes || ['profile']
+
+  answers.forEach(function (ans) {
+    if (scoredTypes.indexOf(ans.type) < 0) return
+    if (ans.most != null) raw[ans.options[ans.most].d] += 2
+    if (ans.least != null) raw[ans.options[ans.least].d] -= 1
+  })
+
+  const minT = discConfig.minTheoretical
+  const maxT = discConfig.maxTheoretical
+  const range = maxT - minT
+
+  const norm = {}
+  Object.keys(raw).forEach(function (k) {
+    norm[k] = Math.max(0, Math.min(100, Math.round(((raw[k] - minT) / range) * 100)))
+  })
+
+  const sorted = Object.entries(raw).sort(function (a, b) { return b[1] - a[1] })
+  const primary = sorted[0][0]
+  const secondary = sorted[1][0]
+
+  // Ловушки: сверяем букву «Больше всего» в ловушке и в её зеркале
+  const mostLetterById = {}
+  answers.forEach(function (ans) {
+    if (ans.most != null) mostLetterById[ans.groupId] = ans.options[ans.most].d
+  })
+  const mismatches = []
+  answers.forEach(function (ans) {
+    if (ans.type !== 'trap' || !ans.mirrorOf) return
+    const mirror = mostLetterById[ans.mirrorOf]
+    const own = mostLetterById[ans.groupId]
+    if (mirror && own && mirror !== own) {
+      mismatches.push(ans.mirrorOf + '/' + ans.groupId)
+    }
+  })
+
+  return {
+    d: raw.D, i: raw.I, s: raw.S, c: raw.C,
+    normD: norm.D, normI: norm.I, normS: norm.S, normC: norm.C,
+    primary: primary,
+    secondary: secondary,
+    trapMismatches: mismatches,
+    trapsConsistent: mismatches.length === 0,
+  }
+}
+
+/**
+ * Payload для office-universal.
+ * Композитного балла нет намеренно: DISC описательный, сворачивать его
+ * в единое число значило бы превратить характер в приговор.
+ */
+export function buildPayloadBasic({ name, vacancy, role, cogResult, discResult }) {
+  return {
+    candidate_name: name,
+    lang: 'ru',
+    role: role.sheetName,
+    vacancy: vacancy || '',
+    consent: 'да',
+    consent_at: new Date().toISOString(),
+
+    // Когнитивный — общий счёт + раскладка по тирам
+    cog_score: cogResult.score,
+    cog_max: cogResult.max,
+    cog_pct: cogResult.pct,
+    cog_t1: cogResult.tiers.t1.score, cog_t1_max: cogResult.tiers.t1.max,
+    cog_t2: cogResult.tiers.t2.score, cog_t2_max: cogResult.tiers.t2.max,
+    cog_t3: cogResult.tiers.t3.score, cog_t3_max: cogResult.tiers.t3.max,
+    cog_level: cogResult.ceiling,
+    cog_unanswered: cogResult.unanswered,
+    cog_time_sec: cogResult.timeSec,
+    raw_cog: cogResult,
+
+    // Гейт — только базовый тир
+    gated: !cogResult.gatePassed,
+    gate_reason: cogResult.gateReason,
+
+    // DISC — описательный
+    disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
+    disc_normD: discResult.normD, disc_normI: discResult.normI,
+    disc_normS: discResult.normS, disc_normC: discResult.normC,
+    disc_primary: discResult.primary,
+    disc_secondary: discResult.secondary,
+    disc_flags: discResult.trapsConsistent ? '' : 'расхождение: ' + discResult.trapMismatches.join(', '),
+  }
+}
