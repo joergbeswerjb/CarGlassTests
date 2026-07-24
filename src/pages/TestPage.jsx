@@ -2,6 +2,7 @@
 // Поддерживает два типа тестов:
 //   - 'classic'  : intro → cognitive → disc → visual → done (техник)
 //   - 'extended' : access_code → intro → cognitive → disc → visual_clickable → structuring → communication → done (OD)
+//   - 'basic'    : intro → cognitive (тиры) → disc (описательный) → done (офисные позиции)
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -11,6 +12,7 @@ import { saveAssessment } from '../utils/api.js'
 import {
   calcCognitive, calcDisc, calcVisual, calcOverall, buildPayload,
   calcCognitiveOD, calcDiscOD, calcVisualOD, calcOverallOD, buildPayloadOD,
+  calcCognitiveTiered, calcDiscBasic, buildPayloadBasic,
 } from '../utils/scoring.js'
 import { useAutosave, loadAutosave, clearAutosave } from '../utils/useAutosave.js'
 
@@ -28,10 +30,14 @@ import BlockVisualClickable  from '../components/test/BlockVisualClickable.jsx'
 import BlockStructured       from '../components/test/BlockStructured.jsx'
 import BlockCommunication    from '../components/test/BlockCommunication.jsx'
 
+// Базовые блоки (офисные позиции)
+import BlockCognitiveTiered  from '../components/test/BlockCognitiveTiered.jsx'
+
 // Конфигурация шагов по типу теста
 const STEPS_BY_TYPE = {
   classic:  ['intro', 'cognitive', 'disc', 'visual', 'submitting'],
   extended: ['access', 'intro', 'cognitive', 'disc', 'visual', 'structuring', 'communication', 'submitting'],
+  basic:    ['intro', 'cognitive', 'disc', 'submitting'],
 }
 
 export default function TestPage() {
@@ -62,13 +68,14 @@ export default function TestPage() {
   const [step, setStep]       = useState(saved?.state.step    || initialStep)
   const [lang, setLang]       = useState(saved?.state.lang    || 'ru')
   const [name, setName]       = useState(saved?.state.name    || '')
+  const [vacancy, setVacancy] = useState(saved?.state.vacancy || '')
 
   // Универсальное хранилище ответов всех блоков
   const [answers, setAnswers] = useState(saved?.state.answers || {})
   const [error,   setError]   = useState('')
 
   // Автосохранение прогресса
-  useAutosave(autosaveKey, { step, lang, name, answers }, step !== 'submitting')
+  useAutosave(autosaveKey, { step, lang, name, vacancy, answers }, step !== 'submitting')
 
   // Прогресс по шагам (без access и submitting)
   const visibleSteps = STEPS.filter(s => s !== 'access' && s !== 'submitting')
@@ -83,7 +90,14 @@ export default function TestPage() {
     try {
       let payload
 
-      if (testType === 'classic') {
+      if (testType === 'basic') {
+        // Офисные позиции: когнитивка по тирам + описательный DISC
+        const cogCfg    = role.questions.COGNITIVE_CONFIG
+        const cogResult = calcCognitiveTiered(finalAnswers.cognitive, cogCfg)
+        const discResult = calcDiscBasic(finalAnswers.disc || [], role.questions.DISC_CONFIG)
+
+        payload = buildPayloadBasic({ name, vacancy, role, cogResult, discResult })
+      } else if (testType === 'classic') {
         // Классический техник
         const { COGNITIVE, DISC, VISUAL_SCENES } = role.questions
         const cogResult  = calcCognitive(finalAnswers.cognitive || [])
@@ -231,6 +245,8 @@ export default function TestPage() {
             lang={lang}
             name={name}
             onNameChange={setName}
+            vacancy={vacancy}
+            onVacancyChange={setVacancy}
             onStart={() => setStep('cognitive')}
           />
         )}
@@ -252,6 +268,15 @@ export default function TestPage() {
           />
         )}
 
+        {step === 'cognitive' && testType === 'basic' && (
+          <BlockCognitiveTiered
+            bank={role.questions.COGNITIVE_BANK}
+            config={role.questions.COGNITIVE_CONFIG}
+            savedState={answers.cognitive}
+            onComplete={a => { recordAnswer('cognitive', a); setStep('disc') }}
+          />
+        )}
+
         {/* ── DISC ── */}
         {step === 'disc' && testType === 'classic' && (
           <BlockDisc
@@ -265,6 +290,18 @@ export default function TestPage() {
             questions={role.questions.DISC}
             savedState={answers.disc}
             onComplete={a => { recordAnswer('disc', a); setStep('visual') }}
+          />
+        )}
+
+        {step === 'disc' && testType === 'basic' && (
+          <BlockDiscOD
+            questions={role.questions.DISC}
+            savedState={answers.disc}
+            blockLabel="Блок 2 из 2"
+            onComplete={a => {
+              recordAnswer('disc', a)
+              handleSubmit({ ...answers, disc: a })
+            }}
           />
         )}
 
