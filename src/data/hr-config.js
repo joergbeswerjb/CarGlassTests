@@ -64,7 +64,7 @@ export const HR_CONFIG = {
       { key: 'Вакансия',      label: 'Вакансия', width: '18%'                        },
       { key: 'Дата',          label: 'Дата',     width: '14%', format: 'date'        },
       { key: 'Когнитивный',   label: 'Ког.',     width: '10%'                        },
-      { key: 'Ког. потолок',  label: 'Потолок',  width: '12%'                        },
+      { key: 'Ког. уровень',  label: 'Уровень',  width: '12%'                        },
       { key: 'DISC осн.',     label: 'DISC',     width: '10%'                        },
       { key: 'Гейт',          label: 'Гейт',     width: '14%', format: 'gate-status' },
     ],
@@ -73,7 +73,7 @@ export const HR_CONFIG = {
     cardSummary: [
       { key: 'Вакансия',      label: 'Вакансия'                          },
       { key: 'Когнитивный',   label: 'Когнитивка'                        },
-      { key: 'Ког. потолок',  label: 'Потолок'                           },
+      { key: 'Ког. уровень',  label: 'Уровень'                           },
       { key: 'DISC осн.',     label: 'DISC'                              },
       { key: 'Гейт',          label: 'Гейт',     format: 'gate-status'   },
     ],
