@@ -7,6 +7,7 @@
 
 import technicianQuestions        from './questions/technician.js'
 import operationsDirectorContent  from './questions/operations-director.js'
+import officeUniversalContent     from './questions/office-universal.js'
 
 export const ROLES = {
   // ── Техник филиала (без изменений) ──
@@ -42,6 +43,23 @@ export const ROLES = {
     ranks:      operationsDirectorContent.SCORE_RANKS,
     weights:    operationsDirectorContent.SCORE_WEIGHTS,
     gates:      operationsDirectorContent.SCORE_GATES,
+  },
+
+  // ── Офис универсальный — один тест на три бэк-офисные позиции ──
+  'office-universal': {
+    slug:       'office-universal',
+    sheetName:  'Офис универсальный',
+    label:      { ru: 'Офисные позиции', kz: 'Офистік лауазымдар' },
+    questions:  officeUniversalContent,
+    // Языковая политика: рабочий язык офиса — русский
+    languages:  ['ru'],
+    // 2-блочный тест: когнитивка по тирам + описательный DISC
+    testType:   'basic',   // intro → cognitive → disc → done
+    accessCode: null,      // открытый доступ
+    // Кандидат указывает вакансию рядом с ФИО (один тест на три позиции)
+    vacancies:  officeUniversalContent.VACANCIES,
+    // Композитного балла и рангов нет намеренно: DISC описательный.
+    // Единственный гейт — базовый тир когнитивки, он в COGNITIVE_CONFIG.gate.
   },
 }
 
