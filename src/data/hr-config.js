@@ -55,6 +55,32 @@ export const HR_CONFIG = {
     aiSections: ['flags', 'interview-script', 'final-analysis'],
   },
 
+  'office-universal': {
+    slug: 'office-universal',
+    sheetName: 'Офис универсальный',
+    label: 'Офисные позиции',
+    listColumns: [
+      { key: 'Имя',           label: 'Имя',      width: '22%'                        },
+      { key: 'Вакансия',      label: 'Вакансия', width: '18%'                        },
+      { key: 'Дата',          label: 'Дата',     width: '14%', format: 'date'        },
+      { key: 'Когнитивный',   label: 'Ког.',     width: '10%'                        },
+      { key: 'Ког. потолок',  label: 'Потолок',  width: '12%'                        },
+      { key: 'DISC осн.',     label: 'DISC',     width: '10%'                        },
+      { key: 'Гейт',          label: 'Гейт',     width: '14%', format: 'gate-status' },
+    ],
+    // Композитного балла и ранга нет намеренно: DISC описательный,
+    // сворачивать характер в единое число значило бы сделать его приговором.
+    cardSummary: [
+      { key: 'Вакансия',      label: 'Вакансия'                          },
+      { key: 'Когнитивный',   label: 'Когнитивка'                        },
+      { key: 'Ког. потолок',  label: 'Потолок'                           },
+      { key: 'DISC осн.',     label: 'DISC'                              },
+      { key: 'Гейт',          label: 'Гейт',     format: 'gate-status'   },
+    ],
+    cardBlocks: ['cognitive-tiered', 'disc-basic'],
+    aiSections: [],
+  },
+
   // Будущие роли добавлять по образцу:
   // 'cfo':    { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
   // 'gm':     { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
@@ -62,4 +88,4 @@ export const HR_CONFIG = {
 }
 
 // Порядок отображения ролей в переключателе HR-панели
-export const HR_ROLES_ORDER = ['operations-director', 'technician']
+export const HR_ROLES_ORDER = ['operations-director', 'office-universal', 'technician']
