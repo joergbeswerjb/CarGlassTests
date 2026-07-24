@@ -82,7 +82,7 @@ function Stat({ title, value, color }) {
 
 export default function BlockCognitiveTieredSummary({ row, rows }) {
   const total = parseScore(row['Когнитивный'])
-  const ceiling = row['Ког. потолок'] || '—'
+  const level = row['Ког. уровень'] || '—'
   const unanswered = Number(row['Ког. не отвечено'])
   const rank = poolRank(rows, row)
 
@@ -94,7 +94,7 @@ export default function BlockCognitiveTieredSummary({ row, rows }) {
           value={total ? total.score + ' / ' + total.max : '—'}
           color={colorByPct(total && total.pct)}
         />
-        <Stat title="Потолок" value={ceiling} />
+        <Stat title="Уровень" value={level} />
         <Stat
           title="Ранг в пуле"
           value={rank ? rank.place + ' / ' + rank.total : '—'}
