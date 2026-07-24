@@ -383,10 +383,12 @@ export function calcCognitiveTiered(result, config) {
   const max = questions.length
   const pct = max > 0 ? Math.round((score / max) * 100) : 0
 
-  // Потолок — самый высокий тир, взятый не ниже порога
-  let ceiling = '—'
+  // Уровень кандидата — самый высокий тир, взятый не ниже порога.
+  // Подписи берутся из ceilingLabels, а не из названий тиров.
+  const labels = config.ceilingLabels || config.tierLabels
+  let ceiling = config.ceilingNone || '—'
   config.tierOrder.forEach(function (tier) {
-    if (tiers[tier].pct >= config.ceilingThresholdPct) ceiling = tiers[tier].label
+    if (tiers[tier].pct >= config.ceilingThresholdPct) ceiling = labels[tier] || tiers[tier].label
   })
 
   // Гейт по базовому тиру
@@ -484,7 +486,7 @@ export function buildPayloadBasic({ name, vacancy, role, cogResult, discResult }
     cog_t1: cogResult.tiers.t1.score, cog_t1_max: cogResult.tiers.t1.max,
     cog_t2: cogResult.tiers.t2.score, cog_t2_max: cogResult.tiers.t2.max,
     cog_t3: cogResult.tiers.t3.score, cog_t3_max: cogResult.tiers.t3.max,
-    cog_ceiling: cogResult.ceiling,
+    cog_level: cogResult.ceiling,
     cog_unanswered: cogResult.unanswered,
     cog_time_sec: cogResult.timeSec,
     raw_cog: cogResult,
