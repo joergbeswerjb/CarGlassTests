@@ -2,6 +2,7 @@
 // Поддерживает обе модели:
 //   - classic  (technик): 3 блока, билингвальный RU/KZ
 //   - extended (OD): 5 блоков, только русский
+//   - basic    (офисные позиции): 2 блока, только русский, с выбором вакансии
 // Брендинг GlassGo: светлая страница, синий primary, асимметричная плашка.
 // Согласие на обработку данных - обязательная галочка, без неё тест не стартует.
 
@@ -14,6 +15,7 @@ const T = {
     wlc:      'Тест кандидата',
     sub_classic:  'Когнитивный потенциал · Личностный профиль · Стандарт качества',
     sub_extended: 'Когнитивный · DISC · Визуальный · Структурирование · Коммуникация',
+    sub_basic:    'Когнитивный потенциал · Личностный профиль DISC',
     b_cog:    'Когнитивный\nблок',
     b_disc:   'Личностный\nпрофиль DISC',
     b_vis:    'Визуальный\nстандарт',
@@ -26,9 +28,15 @@ const T = {
     timer:     'Таймер Блок 1',
     timer_classic_val:  '12 минут',
     timer_extended_val: '22 минуты',
+    time_basic_val:  '30-35 мин',
+    timer_basic_val: '20 минут',
     rulesTtl: 'Правила тестирования',
     rules_classic:  'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру. В Блоке 3 внимательно изучите изображение перед тем, как отмечать нарушения.',
     rules_extended: 'Отвечайте самостоятельно, без посторонней помощи и без ИИ-сервисов. Блок 1 проходит строго по таймеру (22 минуты на 20 вопросов); можно пользоваться калькулятором. Тест проходите с компьютера. В блоках 3-5 ответы оцениваются по существу - пишите развёрнуто и конкретно; вернуться к уже пройденному блоку нельзя. Прогресс сохраняется автоматически. Ответы, похожие на сгенерированные ИИ, помечаются и являются основанием для отказа, а все ответы разбираются на собеседовании.',
+    rules_basic: 'Отвечайте самостоятельно, без посторонней помощи и без ИИ-сервисов. Блок 1 проходит строго по таймеру (20 минут на 30 вопросов); можно пользоваться калькулятором. Вопросы идут от простых к сложным — дойти до конца удаётся не всем, это нормально. Вернуться к уже пройденному блоку нельзя. В Блоке 2 нет правильных и неправильных ответов: отвечайте как есть.',
+    vacancyLabel: 'Позиция, на которую вы претендуете:',
+    vacancyPh:    'Выберите позицию',
+    noVacancy:    'Выберите позицию',
     consentTtl:   'Согласие на обработку данных',
     consentText:  'Тест собирает и обрабатывает ваши персональные данные (ФИО, ответы, резюме) для оценки кандидатуры. Данные хранятся на облачных сервисах, в том числе за пределами РК, используются только для найма и по запросу могут быть предоставлены, исправлены или удалены.',
     consentCheck: 'Я ознакомлен и даю согласие на обработку моих персональных данных, включая хранение за пределами РК.',
@@ -43,6 +51,7 @@ const T = {
     wlc:      'Кандидат тесті',
     sub_classic:  'Танымдық · Тұлғалық профиль · Сапа стандарты',
     sub_extended: 'Танымдық · DISC · Визуалдық · Идеяны құрылымдау · Коммуникация',
+    sub_basic:    'Танымдық әлеует · DISC тұлғалық профилі',
     b_cog:    'Танымдық\nблок',
     b_disc:   'Тұлғалық\nпрофиль DISC',
     b_vis:    'Визуалдық\nстандарт',
@@ -55,9 +64,15 @@ const T = {
     timer:     '1-блок таймері',
     timer_classic_val:  '12 минут',
     timer_extended_val: '22 минут',
+    time_basic_val:  '30-35 мин',
+    timer_basic_val: '20 минут',
     rulesTtl: 'Тест ережелері',
     rules_classic:  'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді. 3-блокта суретті мұқият зерттеңіз.',
     rules_extended: 'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді (22 мин). 3-5 блоктарда жауаптарыңыз мазмұны бойынша бағаланады. Прогресс автоматты түрде сақталады.',
+    rules_basic: 'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді (20 мин). Сұрақтар қарапайымнан күрделіге қарай жүреді. 2-блокта дұрыс және бұрыс жауап жоқ.',
+    vacancyLabel: 'Сіз үміткер болып отырған лауазым:',
+    vacancyPh:    'Лауазымды таңдаңыз',
+    noVacancy:    'Лауазымды таңдаңыз',
     consentTtl:   'Деректерді өңдеуге келісім',
     consentText:  'Тест сіздің жеке деректеріңізді (аты-жөні, жауаптар, түйіндеме) кандидатураны бағалау үшін жинайды және өңдейді. Деректер бұлттық сервистерде, оның ішінде ҚР-дан тыс жерде сақталады, тек жұмысқа қабылдау үшін пайдаланылады және сұрау бойынша берілуі, түзетілуі немесе жойылуы мүмкін.',
     consentCheck: 'Жеке деректерімді өңдеуге, оның ішінде ҚР-дан тыс сақтауға келісім беремін.',
@@ -69,7 +84,7 @@ const T = {
   },
 }
 
-export default function BlockIntro({ role, lang, name, onNameChange, onStart }) {
+export default function BlockIntro({ role, lang, name, onNameChange, vacancy, onVacancyChange, onStart }) {
   const t = T[lang] || T.ru
   const testType = role.testType || 'classic'
   const [consent, setConsent] = useState(false)
@@ -79,6 +94,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
     if (blockKey === 'cognitive') {
       if (q.COGNITIVE_BANK && q.COGNITIVE_CONFIG) {
         const quotas = q.COGNITIVE_CONFIG.quotas
+        if (!quotas) return q.COGNITIVE_BANK.length
         let total = 0
         Object.entries(quotas).forEach(function (entry) {
           const cat = entry[0]
@@ -108,13 +124,23 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
     return 0
   }
 
+  const needsVacancy = Array.isArray(role.vacancies) && role.vacancies.length > 0
+
   function handleStart() {
     if (!name.trim()) { alert(t.noName); return }
+    if (needsVacancy && !vacancy) { alert(t.noVacancy); return }
     if (!consent) { alert(t.noConsent); return }
     onStart()
   }
 
-  const blocks = testType === 'extended'
+  const blocksBasic = [
+    { n: getQuestionCount('cognitive'), l: t.b_cog  },
+    { n: getQuestionCount('disc'),      l: t.b_disc },
+  ]
+
+  const blocks = testType === 'basic'
+    ? blocksBasic
+    : testType === 'extended'
     ? [
         { n: getQuestionCount('cognitive'),     l: t.b_cog    },
         { n: getQuestionCount('disc'),          l: t.b_disc   },
@@ -128,22 +154,32 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
         { n: getQuestionCount('visual'),    l: t.b_vis  },
       ]
 
-  const sub = testType === 'extended' ? t.sub_extended : t.sub_classic
-  const timeVal  = testType === 'extended' ? t.time_extended_val  : t.time_classic_val
-  const timerVal = testType === 'extended' ? t.timer_extended_val : t.timer_classic_val
-  const rules    = testType === 'extended' ? t.rules_extended     : t.rules_classic
+  const sub = testType === 'basic' ? t.sub_basic
+    : testType === 'extended' ? t.sub_extended : t.sub_classic
+  const timeVal = testType === 'basic' ? t.time_basic_val
+    : testType === 'extended' ? t.time_extended_val : t.time_classic_val
+  const timerVal = testType === 'basic' ? t.timer_basic_val
+    : testType === 'extended' ? t.timer_extended_val : t.timer_classic_val
+  const rules = testType === 'basic' ? t.rules_basic
+    : testType === 'extended' ? t.rules_extended : t.rules_classic
 
   const gridCols = 'repeat(' + blocks.length + ', 1fr)'
   const timeCols = testType === 'extended' ? 'repeat(2,1fr)' : 'repeat(3,1fr)'
 
   let thresholdText = '-'
-  if (role.ranks && role.ranks.A) {
+  const cogCfg = role.questions && role.questions.COGNITIVE_CONFIG
+  if (testType === 'basic' && cogCfg && cogCfg.gate) {
+    const baseCount = (role.questions.COGNITIVE_BANK || []).filter(function (q) {
+      return q.tier === cogCfg.gate.tier
+    }).length
+    thresholdText = cogCfg.gate.minCorrect + '+ / ' + baseCount
+  } else if (role.ranks && role.ranks.A) {
     const minScore = Math.round(role.ranks.A * 0.8)
     const cogMax = role.cogMax || '-'
     thresholdText = minScore + '+ / ' + cogMax
   }
 
-  const canStart = name.trim() !== '' && consent
+  const canStart = name.trim() !== '' && consent && (!needsVacancy || vacancy !== '')
 
   return (
     <div style={{
@@ -292,6 +328,32 @@ export default function BlockIntro({ role, lang, name, onNameChange, onStart }) 
         onFocus={function (e) { e.target.style.borderColor = B.primary }}
         onBlur={function (e) { e.target.style.borderColor = B.border }}
       />
+
+      {needsVacancy && (
+        <div>
+          <div style={{ fontSize: 13, color: B.muted, marginBottom: 8 }}>{t.vacancyLabel}</div>
+          <select
+            value={vacancy || ''}
+            onChange={function (e) { onVacancyChange(e.target.value) }}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '12px 14px', fontSize: 14,
+              color: vacancy ? B.text : B.muted,
+              border: '1px solid ' + B.border, background: B.white,
+              fontFamily: 'inherit', marginBottom: '1.25rem',
+              outline: 'none', borderRadius: SHAPE.input,
+              cursor: 'pointer',
+            }}
+            onFocus={function (e) { e.target.style.borderColor = B.primary }}
+            onBlur={function (e) { e.target.style.borderColor = B.border }}
+          >
+            <option value="">{t.vacancyPh}</option>
+            {role.vacancies.map(function (v) {
+              return <option key={v} value={v}>{v}</option>
+            })}
+          </select>
+        </div>
+      )}
 
       <div style={{
         background: B.light, border: '1px solid ' + B.border,
