@@ -5,6 +5,24 @@
 import { B, SHAPE } from '../../utils/brand.js'
 import { parseScore } from '../../utils/hr-format.js'
 
+// Счёт по тирам приходит текстом «5 из 10».
+// Форма «5/10» не используется намеренно: Google Sheets превращает её в дату
+// при знаменателе 1-12, и значение теряется. Запасной разбор оставлен
+// для строк, записанных до этой правки.
+function parseTierScore(value) {
+  if (value === undefined || value === null) return null
+  const s = String(value).trim()
+  if (!s) return null
+  const m = s.match(/^(\d+)\s*из\s*(\d+)$/)
+  if (m) {
+    const score = Number(m[1])
+    const max = Number(m[2])
+    if (max > 0) return { score: score, max: max, pct: Math.round((score / max) * 100) }
+    return null
+  }
+  return parseScore(s)
+}
+
 const TIERS = [
   { key: 'Ког. база',    label: 'База'    },
   { key: 'Ког. средний', label: 'Средний' },
@@ -92,7 +110,7 @@ export default function BlockCognitiveTieredSummary({ row, rows }) {
       </div>
 
       {TIERS.map(function (tier) {
-        const sc = parseScore(row[tier.key])
+        const sc = parseTierScore(row[tier.key])
         const pct = sc ? sc.pct : 0
         return (
           <div key={tier.key} style={{
