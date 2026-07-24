@@ -64,10 +64,10 @@ function blockMeta(blockType, row) {
   if (blockType === 'cognitive-tiered') {
     // Источник — те же колонки, что читает тело блока
     const sc = row['Когнитивный']
-    const ceiling = row['Ког. потолок']
+    const level = row['Ког. уровень']
     const parts = []
     if (sc) parts.push(String(sc))
-    if (ceiling) parts.push('потолок: ' + ceiling)
+    if (level) parts.push('уровень: ' + level)
     return parts.join(' · ')
   }
   if (blockType === 'disc-basic') {
