@@ -10,7 +10,7 @@ import BrandedButton from '../BrandedButton.jsx'
 const SLATE    = '#5E6B7A'
 const SLATE_BG = '#EDF0F4'
 
-export default function BlockDiscOD({ questions, savedState, onComplete }) {
+export default function BlockDiscOD({ questions, savedState, onComplete, blockLabel }) {
   const [currentIdx, setCurrentIdx] = useState(savedState?.currentIdx || 0)
   const [answers,    setAnswers]    = useState(savedState?.answers    || [])
   const [most,       setMost]       = useState(null)
@@ -26,6 +26,7 @@ export default function BlockDiscOD({ questions, savedState, onComplete }) {
     const newAnswer = {
       groupId: current.id,
       type: current.type,
+      mirrorOf: current.mirrorOf || null,  // для сверки ловушек (basic); у OD undefined
       most,
       least,
       options: current.options,  // сохраняем для скоринга
@@ -49,7 +50,7 @@ export default function BlockDiscOD({ questions, savedState, onComplete }) {
       {/* Шапка */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>
-          Блок 2 из 5 · Группа {currentIdx + 1} из {questions.length}
+          {blockLabel || 'Блок 2 из 5'} · Группа {currentIdx + 1} из {questions.length}
         </p>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>Без таймера</p>
       </div>
