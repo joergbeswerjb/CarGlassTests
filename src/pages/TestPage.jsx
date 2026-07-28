@@ -13,6 +13,7 @@ import {
   calcCognitive, calcDisc, calcVisual, calcOverall, buildPayload,
   calcCognitiveOD, calcDiscOD, calcVisualOD, calcOverallOD, buildPayloadOD,
   calcCognitiveTiered, calcDiscBasic, buildPayloadBasic,
+  calcCognitiveCoS, calcDiscCoS, calcOverallCoS, buildPayloadCoS,
 } from '../utils/scoring.js'
 import { useAutosave, loadAutosave, clearAutosave } from '../utils/useAutosave.js'
 
@@ -38,6 +39,7 @@ const STEPS_BY_TYPE = {
   classic:  ['intro', 'cognitive', 'disc', 'visual', 'submitting'],
   extended: ['access', 'intro', 'cognitive', 'disc', 'visual', 'structuring', 'communication', 'submitting'],
   basic:    ['intro', 'cognitive', 'disc', 'submitting'],
+  cos:      ['access', 'intro', 'cognitive', 'disc', 'case', 'prioritization', 'submitting'],
 }
 
 export default function TestPage() {
@@ -112,6 +114,23 @@ export default function TestPage() {
           rawCog:  finalAnswers.cognitive,
           rawDisc: finalAnswers.disc,
           rawVis:  finalAnswers.visual,
+        })
+      } else if (testType === 'cos') {
+        // CoS-тест: cognitive → disc → case → prioritization
+        const cogResult  = calcCognitiveCoS(finalAnswers.cognitive, role.questions.COGNITIVE_CONFIG)
+        const discResult = calcDiscCoS(finalAnswers.disc, role.discTargets, role.discOrder)
+        const overall    = calcOverallCoS({
+          cog: cogResult, disc: discResult,
+          caseAnswers: finalAnswers.case,
+          prioAnswers: finalAnswers.prioritization,
+          role,
+        })
+        payload = buildPayloadCoS({
+          name, role,
+          cogResult, discResult,
+          caseAnswers: finalAnswers.case,
+          prioAnswers: finalAnswers.prioritization,
+          overallResult: overall,
         })
       } else {
         // OD-тест (extended)
@@ -267,6 +286,14 @@ export default function TestPage() {
             onComplete={a => { recordAnswer('cognitive', a); setStep('disc') }}
           />
         )}
+        {step === 'cognitive' && testType === 'cos' && (
+          <BlockCognitiveOD
+            bank={role.questions.COGNITIVE_BANK}
+            config={role.questions.COGNITIVE_CONFIG}
+            savedState={answers.cognitive}
+            onComplete={a => { recordAnswer('cognitive', a); setStep('disc') }}
+          />
+        )}
 
         {step === 'cognitive' && testType === 'basic' && (
           <BlockCognitiveTiered
@@ -290,6 +317,13 @@ export default function TestPage() {
             questions={role.questions.DISC}
             savedState={answers.disc}
             onComplete={a => { recordAnswer('disc', a); setStep('visual') }}
+          />
+        )}
+        {step === 'disc' && testType === 'cos' && (
+          <BlockDiscOD
+            questions={role.questions.DISC}
+            savedState={answers.disc}
+            onComplete={a => { recordAnswer('disc', a); setStep('case') }}
           />
         )}
 
@@ -342,6 +376,27 @@ export default function TestPage() {
             onComplete={a => {
               recordAnswer('communication', a)
               handleSubmit({ ...answers, communication: a })
+            }}
+          />
+        )}
+
+        {/* ── Case (кейс + EN, только cos) ── */}
+        {step === 'case' && testType === 'cos' && (
+          <BlockStructured
+            caseData={role.questions.CASE_STUDY}
+            savedAnswers={answers.case}
+            onComplete={a => { recordAnswer('case', a); setStep('prioritization') }}
+          />
+        )}
+
+        {/* ── Prioritization (только cos, последний блок) ── */}
+        {step === 'prioritization' && testType === 'cos' && (
+          <BlockStructured
+            caseData={role.questions.PRIORITIZATION_CASE}
+            savedAnswers={answers.prioritization}
+            onComplete={a => {
+              recordAnswer('prioritization', a)
+              handleSubmit({ ...answers, prioritization: a })
             }}
           />
         )}
