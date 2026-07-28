@@ -50,7 +50,8 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
         padding: '14px 16px',
         marginBottom: 24,
         fontSize: 14,
-        lineHeight: 1.7,
+        lineHeight: 1.6,
+        color: B.text,
         whiteSpace: 'pre-wrap',
       }}>
         <p style={{ margin: '0 0 8px', fontSize: 12, color: B.muted }}>{caseData.messageLabel || '📱 Сообщение от руководителя'}</p>
