@@ -91,7 +91,7 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
               onFocus={() => setFocused(field.id)}
               onBlur={() => setFocused(null)}
               placeholder="Опишите развёрнуто..."
-              rows={4}
+              rows={field.minChars >= 350 ? 12 : field.minChars >= 200 ? 9 : 6}
               style={{
                 width: '100%',
                 padding: '10px 12px',
