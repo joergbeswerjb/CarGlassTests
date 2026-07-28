@@ -16,11 +16,14 @@ const T = {
     sub_classic:  'Когнитивный потенциал · Личностный профиль · Стандарт качества',
     sub_extended: 'Когнитивный · DISC · Визуальный · Структурирование · Коммуникация',
     sub_basic:    'Когнитивный потенциал · Личностный профиль DISC',
+    sub_cos:      'Когнитивный · DISC · Кейс-аналитика · Приоритизация',
     b_cog:    'Когнитивный\nблок',
     b_disc:   'Личностный\nпрофиль DISC',
     b_vis:    'Визуальный\nстандарт',
     b_struct: 'Структурирование\nидеи',
     b_comm:   'Неудобный\nразговор',
+    b_case:   'Кейс-аналитика\n+ письмо EN',
+    b_prio:   'Приоритизация\nзадач',
     time_classic:  'Общее время',
     time_classic_val:  '25-30 мин',
     time_extended: 'Общее время',
@@ -30,10 +33,13 @@ const T = {
     timer_extended_val: '22 минуты',
     time_basic_val:  '30-35 мин',
     timer_basic_val: '20 минут',
+    time_cos_val: '≤ 60 мин',
+    timer_cos_val: '15 минут',
     rulesTtl: 'Правила тестирования',
     rules_classic:  'Отвечайте самостоятельно, без посторонней помощи. Блок 1 проходит строго по таймеру. В Блоке 3 внимательно изучите изображение перед тем, как отмечать нарушения.',
     rules_extended: 'Отвечайте самостоятельно, без посторонней помощи и без ИИ-сервисов. Блок 1 проходит строго по таймеру (22 минуты на 20 вопросов); можно пользоваться калькулятором. Тест проходите с компьютера. В блоках 3-5 ответы оцениваются по существу - пишите развёрнуто и конкретно; вернуться к уже пройденному блоку нельзя. Прогресс сохраняется автоматически. Ответы, похожие на сгенерированные ИИ, помечаются и являются основанием для отказа, а все ответы разбираются на собеседовании.',
     rules_basic: 'Отвечайте самостоятельно, без посторонней помощи и без ИИ-сервисов. Блок 1 проходит строго по таймеру (20 минут на 30 вопросов); можно пользоваться калькулятором. Вопросы идут от простых к сложным — дойти до конца удаётся не всем, это нормально. Вернуться к уже пройденному блоку нельзя. В Блоке 2 нет правильных и неправильных ответов: отвечайте как есть.',
+    rules_cos: 'Отвечайте самостоятельно, без посторонней помощи. Блок 1 (когнитивный) проходит строго по таймеру; можно пользоваться калькулятором. В Блоке 2 (личностный профиль) нет правильных и неправильных ответов — отвечайте как есть. В блоках 3–4 ответы оцениваются по существу — пишите развёрнуто и конкретно. Одно поле в Блоке 3 — на английском языке. Вернуться к уже пройденному блоку нельзя. Прогресс сохраняется автоматически.',
     vacancyLabel: 'Позиция, на которую вы претендуете:',
     vacancyPh:    'Выберите позицию',
     noVacancy:    'Выберите позицию',
@@ -51,12 +57,15 @@ const T = {
     wlc:      'Кандидат тесті',
     sub_classic:  'Танымдық · Тұлғалық профиль · Сапа стандарты',
     sub_extended: 'Танымдық · DISC · Визуалдық · Идеяны құрылымдау · Коммуникация',
+    sub_cos:      'Танымдық · DISC · Кейс-талдау · Басымдық',
     sub_basic:    'Танымдық әлеует · DISC тұлғалық профилі',
     b_cog:    'Танымдық\nблок',
     b_disc:   'Тұлғалық\nпрофиль DISC',
     b_vis:    'Визуалдық\nстандарт',
     b_struct: 'Идеяны\nқұрылымдау',
     b_comm:   'Қиын\nәңгіме',
+    b_case:   'Кейс-талдау\n+ EN хат',
+    b_prio:   'Басымдық\nқою',
     time_classic:  'Жалпы уақыт',
     time_classic_val:  '25-30 мин',
     time_extended: 'Жалпы уақыт',
@@ -69,6 +78,7 @@ const T = {
     rulesTtl: 'Тест ережелері',
     rules_classic:  'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді. 3-блокта суретті мұқият зерттеңіз.',
     rules_extended: 'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді (22 мин). 3-5 блоктарда жауаптарыңыз мазмұны бойынша бағаланады. Прогресс автоматты түрде сақталады.',
+    rules_cos: 'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді; калькулятор рұқсат етілген. 2-блокта дұрыс және бұрыс жауап жоқ — шын жауап беріңіз. 3–4 блоктарда жауаптар мазмұны бойынша бағаланады. 3-блоктың бір өрісі ағылшын тілінде. Өткен блокқа қайта оралуға болмайды.',
     rules_basic: 'Өз бетіңізше жауап беріңіз. 1-блок таймер бойынша жүреді (20 мин). Сұрақтар қарапайымнан күрделіге қарай жүреді. 2-блокта дұрыс және бұрыс жауап жоқ.',
     vacancyLabel: 'Сіз үміткер болып отырған лауазым:',
     vacancyPh:    'Лауазымды таңдаңыз',
@@ -121,6 +131,8 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
       return 0
     }
     if (blockKey === 'communication') return (q.COMMUNICATION_CASES || []).length
+    if (blockKey === 'case') return (q.CASE_STUDY && q.CASE_STUDY.fields) ? q.CASE_STUDY.fields.length : 0
+    if (blockKey === 'prioritization') return (q.PRIORITIZATION_CASE && q.PRIORITIZATION_CASE.fields) ? q.PRIORITIZATION_CASE.fields.length : 0
     return 0
   }
 
@@ -140,6 +152,13 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
 
   const blocks = testType === 'basic'
     ? blocksBasic
+    : testType === 'cos'
+    ? [
+        { n: getQuestionCount('cognitive'),     l: t.b_cog  },
+        { n: getQuestionCount('disc'),          l: t.b_disc },
+        { n: getQuestionCount('case'),          l: t.b_case },
+        { n: getQuestionCount('prioritization'),l: t.b_prio },
+      ]
     : testType === 'extended'
     ? [
         { n: getQuestionCount('cognitive'),     l: t.b_cog    },
@@ -155,16 +174,20 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
       ]
 
   const sub = testType === 'basic' ? t.sub_basic
+    : testType === 'cos' ? t.sub_cos
     : testType === 'extended' ? t.sub_extended : t.sub_classic
   const timeVal = testType === 'basic' ? t.time_basic_val
+    : testType === 'cos' ? t.time_cos_val
     : testType === 'extended' ? t.time_extended_val : t.time_classic_val
   const timerVal = testType === 'basic' ? t.timer_basic_val
+    : testType === 'cos' ? t.timer_cos_val
     : testType === 'extended' ? t.timer_extended_val : t.timer_classic_val
   const rules = testType === 'basic' ? t.rules_basic
+    : testType === 'cos' ? t.rules_cos
     : testType === 'extended' ? t.rules_extended : t.rules_classic
 
   const gridCols = 'repeat(' + blocks.length + ', 1fr)'
-  const timeCols = testType === 'extended' ? 'repeat(2,1fr)' : 'repeat(3,1fr)'
+  const timeCols = (testType === 'extended' || testType === 'cos') ? 'repeat(2,1fr)' : 'repeat(3,1fr)'
 
   let thresholdText = '-'
   const cogCfg = role.questions && role.questions.COGNITIVE_CONFIG
@@ -216,7 +239,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
         </span>
       </div>
 
-      {testType !== 'extended' && (
+      {(testType !== 'extended' && testType !== 'cos') && (
         <p style={{
           fontSize: 14, color: B.muted, lineHeight: 1.6,
           marginBottom: 32, marginTop: 0,
@@ -230,7 +253,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
         gridTemplateColumns: gridCols,
         gap: 10,
         marginBottom: 24,
-        marginTop: testType === 'extended' ? 28 : 0,
+        marginTop: (testType === 'extended' || testType === 'cos') ? 28 : 0,
       }}>
         {blocks.map(function (item, i) {
           return (
@@ -270,7 +293,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
             fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em',
             color: B.muted, marginBottom: 4,
           }}>
-            {testType === 'extended' ? t.time_extended : t.time_classic}
+            {(testType === 'extended' || testType === 'cos') ? t.time_extended : t.time_classic}
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>{timeVal}</div>
         </div>
@@ -286,7 +309,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
           }}>{t.timer}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>{timerVal}</div>
         </div>
-        {testType !== 'extended' && (
+        {(testType !== 'extended' && testType !== 'cos') && (
           <div style={{
             background: B.white, border: '1px solid ' + B.border,
             borderLeft: '3px solid ' + B.primary,

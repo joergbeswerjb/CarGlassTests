@@ -8,6 +8,7 @@
 import technicianQuestions        from './questions/technician.js'
 import operationsDirectorContent  from './questions/operations-director.js'
 import officeUniversalContent     from './questions/office-universal.js'
+import chiefOfStaffContent        from './questions/chief-of-staff.js'
 
 export const ROLES = {
   // ── Техник филиала (без изменений) ──
@@ -27,7 +28,7 @@ export const ROLES = {
     weights:  { cog: 0.40, disc: 0.25, vis: 0.35 },
   },
 
-  // ── Operations Director (CEO-1) — новая роль ──
+  // ── Operations Director (CEO-1) ──
   'operations-director': {
     slug:       'operations-director',
     sheetName:  'Операционный директор',
@@ -43,6 +44,25 @@ export const ROLES = {
     ranks:      operationsDirectorContent.SCORE_RANKS,
     weights:    operationsDirectorContent.SCORE_WEIGHTS,
     gates:      operationsDirectorContent.SCORE_GATES,
+  },
+
+  // ── Помощник ГД / Chief of Staff (CEO-1, роль №1 матрицы найма) ──
+  'chief-of-staff': {
+    slug:       'chief-of-staff',
+    sheetName:  'Помощник ГД / Chief of Staff',
+    label:      { ru: 'Помощник ГД / Chief of Staff', kz: 'Помощник ГД / Chief of Staff' },
+    questions:  chiefOfStaffContent,
+    // Языковая политика: русский + одно поле EN (задание EN-поля на английском)
+    languages:  ['ru'],
+    // 4-блочный тест без визуала: intro → cognitive → disc → case → prioritization → done
+    testType:   'cos',
+    accessCode: 'cos2026',
+    // Целевые зоны DISC и порядок доминант — из контент-файла
+    discTargets:      chiefOfStaffContent.DISC_TARGETS,
+    discOrder:        chiefOfStaffContent.DISC_DOMINANT_ORDER,
+    ranks:            chiefOfStaffContent.SCORE_RANKS,
+    weights:          chiefOfStaffContent.SCORE_WEIGHTS,
+    gates:            chiefOfStaffContent.SCORE_GATES,
   },
 
   // ── Офис универсальный — один тест на три бэк-офисные позиции ──

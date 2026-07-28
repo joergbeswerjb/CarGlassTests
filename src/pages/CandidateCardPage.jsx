@@ -18,6 +18,7 @@ import BlockDiscExtendedSummary from '../components/hr/BlockDiscExtendedSummary.
 import BlockVisualExtendedSummary from '../components/hr/BlockVisualExtendedSummary.jsx'
 import BlockStructuring from '../components/hr/BlockStructuring.jsx'
 import BlockCommunication from '../components/hr/BlockCommunication.jsx'
+import BlockOpenFields from '../components/hr/BlockOpenFields.jsx'
 import BlockCognitiveTieredSummary from '../components/hr/BlockCognitiveTieredSummary.jsx'
 import BlockDiscBasicSummary from '../components/hr/BlockDiscBasicSummary.jsx'
 import AISections from '../components/hr/AISections.jsx'
@@ -31,6 +32,8 @@ const BLOCK_RENDERERS = {
   'disc-basic':         BlockDiscBasicSummary,
   'structuring':        BlockStructuring,
   'communication':      BlockCommunication,
+  'case-study':         BlockOpenFields,
+  'prioritization':     BlockOpenFields,
   // Classic-блоки для техника - добавим позже когда понадобятся
   'cognitive':          null,
   'disc':               null,
@@ -49,6 +52,8 @@ const BLOCK_TITLES = {
   'visual-extended':    { num: '3', title: 'Визуальный стандарт' },
   'structuring':        { num: '4', title: 'Структурирование идеи' },
   'communication':      { num: '5', title: 'Неудобный разговор' },
+  'case-study':         { num: '3', title: 'Кейс-аналитика + письмо EN' },
+  'prioritization':     { num: '4', title: 'Приоритизация' },
 }
 
 // Превью первой строки сырого ответа (для свёрнутого заголовка)
@@ -114,6 +119,12 @@ function blockMeta(blockType, row) {
   }
   if (blockType === 'communication') {
     return truncate(row['Комм. кейс 1'], 38)
+  }
+  if (blockType === 'case-study') {
+    return truncate(row['Кейс: сравнение RU'], 38)
+  }
+  if (blockType === 'prioritization') {
+    return truncate(row['Приоритизация'], 38)
   }
   return ''
 }
@@ -352,7 +363,7 @@ export default function CandidateCardPage() {
         {blocks.map(function (blockType) {
           const Renderer = BLOCK_RENDERERS[blockType]
           const titleInfo = BLOCK_TITLES[blockType] || { num: '?', title: blockType }
-          const isPreview = blockType === 'structuring' || blockType === 'communication'
+          const isPreview = blockType === 'structuring' || blockType === 'communication' || blockType === 'case-study' || blockType === 'prioritization'
           return (
             <Collapsible
               key={blockType}
@@ -365,7 +376,12 @@ export default function CandidateCardPage() {
               forceKey={forceKey}
             >
               {Renderer ? (
-                <Renderer row={row} rows={allRows} cfg={cfg} />
+                <Renderer
+                  row={row}
+                  rows={allRows}
+                  cfg={cfg}
+                  block={cfg.openBlocks ? cfg.openBlocks[blockType] : undefined}
+                />
               ) : (
                 <div style={{
                   padding: '16px',

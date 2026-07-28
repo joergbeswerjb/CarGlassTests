@@ -37,7 +37,7 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
     <div style={{ padding: '1rem', maxWidth: 680, margin: '0 auto' }}>
       {/* Шапка блока */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>Блок 4 из 5 · Структурирование идеи</p>
+        <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>{caseData.blockLabel || 'Блок 4 из 5 · Структурирование идеи'}</p>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>Без таймера</p>
       </div>
 
@@ -50,10 +50,11 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
         padding: '14px 16px',
         marginBottom: 24,
         fontSize: 14,
-        lineHeight: 1.7,
+        lineHeight: 1.6,
+        color: B.text,
         whiteSpace: 'pre-wrap',
       }}>
-        <p style={{ margin: '0 0 8px', fontSize: 12, color: B.muted }}>📱 Сообщение от руководителя</p>
+        <p style={{ margin: '0 0 8px', fontSize: 12, color: B.muted }}>{caseData.messageLabel || '📱 Сообщение от руководителя'}</p>
         {caseData.message}
       </div>
 
@@ -90,7 +91,7 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
               onFocus={() => setFocused(field.id)}
               onBlur={() => setFocused(null)}
               placeholder="Опишите развёрнуто..."
-              rows={4}
+              rows={field.minChars >= 350 ? 12 : field.minChars >= 200 ? 9 : 6}
               style={{
                 width: '100%',
                 padding: '10px 12px',

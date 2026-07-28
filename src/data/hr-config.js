@@ -81,6 +81,50 @@ export const HR_CONFIG = {
     aiSections: [],
   },
 
+  'chief-of-staff': {
+    slug: 'chief-of-staff',
+    sheetName: 'Помощник ГД / Chief of Staff',
+    label: 'Помощник ГД / Chief of Staff',
+    listColumns: [
+      { key: 'Имя',         label: 'Имя',     width: '22%'                          },
+      { key: 'Дата',        label: 'Дата',    width: '12%', format: 'date'          },
+      { key: 'Когн. %',     label: 'Cog%',    width: '10%', format: 'pct'           },
+      { key: 'DISC осн.',   label: 'DISC',    width: '10%'                          },
+      { key: 'Итог %',      label: 'Итог',    width: '10%', format: 'pct'           },
+      { key: 'Ранг',        label: 'Ранг',    width: '10%', format: 'rank-badge'    },
+      { key: 'Гейт',        label: 'Гейт',    width: '14%', format: 'gate-status'   },
+    ],
+    cardSummary: [
+      { key: 'Итог %',      label: 'Итог',    format: 'pct'           },
+      { key: 'Ранг',        label: 'Ранг',    format: 'rank-badge'    },
+      { key: 'DISC осн.',   label: 'DISC'                              },
+      { key: 'Гейт',        label: 'Гейт',    format: 'gate-status'   },
+    ],
+    cardBlocks: [
+      'cognitive-extended',
+      'disc-extended',
+      'case-study',
+      'prioritization',
+    ],
+    aiSections: ['flags', 'interview-script', 'final-analysis'],
+    // Описание открытых блоков CoS для обобщённого рендерера BlockOpenFields
+    openBlocks: {
+      'case-study': {
+        title: 'Кейс-аналитика + письмо EN',
+        fields: [
+          { key: 'Кейс: сравнение RU', label: 'Сравнение поставщиков (RU)', mono: true },
+          { key: 'Кейс: письмо EN',    label: 'Письмо головному офису (EN)'            },
+        ],
+      },
+      'prioritization': {
+        title: 'Приоритизация',
+        fields: [
+          { key: 'Приоритизация', label: 'Три задачи на сегодня + что откладывает и почему' },
+        ],
+      },
+    },
+  },
+
   // Будущие роли добавлять по образцу:
   // 'cfo':    { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
   // 'gm':     { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
@@ -88,4 +132,4 @@ export const HR_CONFIG = {
 }
 
 // Порядок отображения ролей в переключателе HR-панели
-export const HR_ROLES_ORDER = ['operations-director', 'office-universal', 'technician']
+export const HR_ROLES_ORDER = ['operations-director', 'chief-of-staff', 'office-universal', 'technician']
