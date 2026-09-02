@@ -9,6 +9,7 @@ import technicianQuestions        from './questions/technician.js'
 import operationsDirectorContent  from './questions/operations-director.js'
 import officeUniversalContent     from './questions/office-universal.js'
 import chiefOfStaffContent        from './questions/chief-of-staff.js'
+import keyAccountManagerContent   from './questions/key-account-manager.js'
 
 export const ROLES = {
   // ── Техник филиала (без изменений) ──
@@ -63,6 +64,25 @@ export const ROLES = {
     ranks:            chiefOfStaffContent.SCORE_RANKS,
     weights:          chiefOfStaffContent.SCORE_WEIGHTS,
     gates:            chiefOfStaffContent.SCORE_GATES,
+  },
+
+  // ── Менеджер по ключевым клиентам (B2B) / KAM ──
+  'key-account-manager': {
+    slug:       'key-account-manager',
+    sheetName:  'Менеджер по ключевым клиентам (B2B)',
+    label:      { ru: 'Менеджер по ключевым клиентам (B2B)', kz: 'Менеджер по ключевым клиентам (B2B)' },
+    questions:  keyAccountManagerContent,
+    // Языковая политика: только русский (специалист/менеджмент, не массовая роль)
+    languages:  ['ru'],
+    // 4-блочный тест без визуала: intro → cognitive → disc → commercial → communication → done
+    testType:   'kam',
+    accessCode: null,      // вход через StartPage / прямую ссылку на slug
+    // Целевые зоны DISC (D+I+C) и порядок доминант — из контент-файла
+    discTargets:      keyAccountManagerContent.DISC_TARGETS,
+    discOrder:        keyAccountManagerContent.DISC_DOMINANT_ORDER,
+    ranks:            keyAccountManagerContent.SCORE_RANKS,
+    weights:          keyAccountManagerContent.SCORE_WEIGHTS,
+    gates:            keyAccountManagerContent.SCORE_GATES,
   },
 
   // ── Офис универсальный — один тест на три бэк-офисные позиции ──
