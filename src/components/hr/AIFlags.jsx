@@ -14,6 +14,7 @@ import { generateFlags } from '../../utils/api.js'
 const FLAGS_ROLES = {
   'Операционный директор': true,
   'Помощник ГД / Chief of Staff': true,
+  'Менеджер по ключевым клиентам (B2B)': true,
 }
 
 // Цвета и подпись по уровню флага.
