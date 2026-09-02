@@ -14,6 +14,7 @@ import {
   calcCognitiveOD, calcDiscOD, calcVisualOD, calcOverallOD, buildPayloadOD,
   calcCognitiveTiered, calcDiscBasic, buildPayloadBasic,
   calcCognitiveCoS, calcDiscCoS, calcOverallCoS, buildPayloadCoS,
+  calcDiscKAM, calcOverallKAM, buildPayloadKAM,
 } from '../utils/scoring.js'
 import { useAutosave, loadAutosave, clearAutosave } from '../utils/useAutosave.js'
 
@@ -40,6 +41,7 @@ const STEPS_BY_TYPE = {
   extended: ['access', 'intro', 'cognitive', 'disc', 'visual', 'structuring', 'communication', 'submitting'],
   basic:    ['intro', 'cognitive', 'disc', 'submitting'],
   cos:      ['access', 'intro', 'cognitive', 'disc', 'case', 'prioritization', 'submitting'],
+  kam:      ['intro', 'cognitive', 'disc', 'briefing', 'commercial', 'communication', 'submitting'],
 }
 
 export default function TestPage() {
@@ -130,6 +132,24 @@ export default function TestPage() {
           cogResult, discResult,
           caseAnswers: finalAnswers.case,
           prioAnswers: finalAnswers.prioritization,
+          overallResult: overall,
+        })
+      } else if (testType === 'kam') {
+        // KAM-тест: cognitive → disc → commercial → communication
+        const toObj = arr => Object.fromEntries((arr || []).map(x => [x.caseId, x.answer]))
+        const commercialAnswers    = toObj(finalAnswers.commercial)
+        const communicationAnswers = toObj(finalAnswers.communication)
+        const cogResult  = calcCognitiveCoS(finalAnswers.cognitive, role.questions.COGNITIVE_CONFIG)
+        const discResult = calcDiscKAM(finalAnswers.disc, role.discTargets, role.discOrder)
+        const overall    = calcOverallKAM({
+          cog: cogResult, disc: discResult,
+          commercialAnswers, communicationAnswers,
+          role,
+        })
+        payload = buildPayloadKAM({
+          name, role,
+          cogResult, discResult,
+          commercialAnswers, communicationAnswers,
           overallResult: overall,
         })
       } else {
@@ -397,6 +417,76 @@ export default function TestPage() {
             onComplete={a => {
               recordAnswer('prioritization', a)
               handleSubmit({ ...answers, prioritization: a })
+            }}
+          />
+        )}
+
+        {/* ── KAM: cognitive → disc → briefing → commercial → communication ── */}
+        {step === 'cognitive' && testType === 'kam' && (
+          <BlockCognitiveOD
+            bank={role.questions.COGNITIVE_BANK}
+            config={role.questions.COGNITIVE_CONFIG}
+            savedState={answers.cognitive}
+            onComplete={a => { recordAnswer('cognitive', a); setStep('disc') }}
+          />
+        )}
+        {step === 'disc' && testType === 'kam' && (
+          <BlockDiscOD
+            questions={role.questions.DISC}
+            savedState={answers.disc}
+            onComplete={a => { recordAnswer('disc', a); setStep('briefing') }}
+          />
+        )}
+        {step === 'briefing' && testType === 'kam' && (
+          <div style={{ padding: '2rem 1rem', maxWidth: 680, margin: '0 auto' }}>
+            <div style={{
+              background: B.white,
+              border: `1px solid ${B.border}`,
+              borderRadius: SHAPE.card,
+              padding: '24px 22px',
+            }}>
+              <h2 style={{ margin: '0 0 14px', fontSize: 18, color: B.text }}>
+                {role.questions.BRIEFING.title}
+              </h2>
+              <div style={{ whiteSpace: 'pre-wrap', color: B.text, lineHeight: 1.6, fontSize: 14 }}>
+                {role.questions.BRIEFING.message}
+              </div>
+            </div>
+            <button
+              onClick={() => setStep('commercial')}
+              style={{
+                marginTop: 18,
+                padding: '12px 28px',
+                background: B.primary,
+                color: B.white,
+                border: 'none',
+                borderRadius: SHAPE.asymmetric,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Далее →
+            </button>
+          </div>
+        )}
+        {step === 'commercial' && testType === 'kam' && (
+          <BlockCommunication
+            cases={role.questions.COMMERCIAL_CASES}
+            savedAnswers={answers.commercial}
+            blockLabel="Блок 3 из 4"
+            onComplete={a => { recordAnswer('commercial', a); setStep('communication') }}
+          />
+        )}
+        {step === 'communication' && testType === 'kam' && (
+          <BlockCommunication
+            cases={role.questions.COMMUNICATION_CASES}
+            savedAnswers={answers.communication}
+            blockLabel="Блок 4 из 4"
+            onComplete={a => {
+              recordAnswer('communication', a)
+              handleSubmit({ ...answers, communication: a })
             }}
           />
         )}

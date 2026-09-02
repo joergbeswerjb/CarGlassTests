@@ -125,11 +125,57 @@ export const HR_CONFIG = {
     },
   },
 
+  'key-account-manager': {
+    slug: 'key-account-manager',
+    sheetName: 'Менеджер по ключевым клиентам (B2B)',
+    label: 'Менеджер по ключевым клиентам (B2B)',
+    listColumns: [
+      { key: 'Имя',         label: 'Имя',     width: '22%'                          },
+      { key: 'Дата',        label: 'Дата',    width: '12%', format: 'date'          },
+      { key: 'Когн. %',     label: 'Cog%',    width: '10%', format: 'pct'           },
+      { key: 'DISC осн.',   label: 'DISC',    width: '10%'                          },
+      { key: 'Итог %',      label: 'Итог',    width: '10%', format: 'pct'           },
+      { key: 'Ранг',        label: 'Ранг',    width: '10%', format: 'rank-badge'    },
+      { key: 'Гейт',        label: 'Гейт',    width: '14%', format: 'gate-status'   },
+    ],
+    cardSummary: [
+      { key: 'Итог %',      label: 'Итог',    format: 'pct'           },
+      { key: 'Ранг',        label: 'Ранг',    format: 'rank-badge'    },
+      { key: 'DISC осн.',   label: 'DISC'                              },
+      { key: 'Гейт',        label: 'Гейт',    format: 'gate-status'   },
+    ],
+    cardBlocks: [
+      'cognitive-extended',
+      'disc-extended',
+      'commercial',
+      'communication-cases',
+    ],
+    aiSections: ['flags', 'interview-script', 'final-analysis'],
+    // Открытые блоки KAM для обобщённого рендерера BlockOpenFields.
+    // key = имя предметной колонки в листе (сырой ответ первичен).
+    openBlocks: {
+      'commercial': {
+        title: 'Коммерческое суждение',
+        fields: [
+          { key: 'Кейс: первая сделка',      label: 'Первая сделка'                       },
+          { key: 'Кейс: заход на рынок',     label: 'Заход на рынок (локальный B2B-рынок)' },
+          { key: 'Кейс: приоритеты запуска', label: 'Приоритеты запуска'                  },
+        ],
+      },
+      'communication-cases': {
+        title: 'Коммуникация / переговоры',
+        fields: [
+          { key: 'Комм.: барьер доверия', label: 'Барьер доверия'          },
+          { key: 'Комм.: срыв SLA',       label: 'Партнёр после срыва SLA' },
+        ],
+      },
+    },
+  },
+
   // Будущие роли добавлять по образцу:
   // 'cfo':    { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
   // 'gm':     { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
-  // 'kam':    { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
 }
 
 // Порядок отображения ролей в переключателе HR-панели
-export const HR_ROLES_ORDER = ['operations-director', 'chief-of-staff', 'office-universal', 'technician']
+export const HR_ROLES_ORDER = ['operations-director', 'chief-of-staff', 'key-account-manager', 'office-universal', 'technician']

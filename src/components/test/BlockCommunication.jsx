@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { B } from '../../utils/brand.js'
 
-export default function BlockCommunication({ cases, savedAnswers, onComplete }) {
+export default function BlockCommunication({ cases, savedAnswers, onComplete, blockLabel }) {
   // Сохранённые ответы — массив, по индексу кейса
   const [answers, setAnswers] = useState(savedAnswers || cases.map(() => ''))
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -51,7 +51,7 @@ export default function BlockCommunication({ cases, savedAnswers, onComplete }) 
       {/* Шапка блока */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>
-          Блок 5 из 5 · Кейс {currentIdx + 1} из {cases.length}
+          {blockLabel || 'Блок 5 из 5'} · Кейс {currentIdx + 1} из {cases.length}
         </p>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>Без таймера</p>
       </div>

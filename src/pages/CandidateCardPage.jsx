@@ -34,6 +34,8 @@ const BLOCK_RENDERERS = {
   'communication':      BlockCommunication,
   'case-study':         BlockOpenFields,
   'prioritization':     BlockOpenFields,
+  'commercial':           BlockOpenFields,
+  'communication-cases':  BlockOpenFields,
   // Classic-блоки для техника - добавим позже когда понадобятся
   'cognitive':          null,
   'disc':               null,
@@ -54,6 +56,8 @@ const BLOCK_TITLES = {
   'communication':      { num: '5', title: 'Неудобный разговор' },
   'case-study':         { num: '3', title: 'Кейс-аналитика + письмо EN' },
   'prioritization':     { num: '4', title: 'Приоритизация' },
+  'commercial':           { num: '3', title: 'Коммерческое суждение' },
+  'communication-cases':  { num: '4', title: 'Коммуникация / переговоры' },
 }
 
 // Превью первой строки сырого ответа (для свёрнутого заголовка)
@@ -125,6 +129,12 @@ function blockMeta(blockType, row) {
   }
   if (blockType === 'prioritization') {
     return truncate(row['Приоритизация'], 38)
+  }
+  if (blockType === 'commercial') {
+    return truncate(row['Кейс: первая сделка'], 38)
+  }
+  if (blockType === 'communication-cases') {
+    return truncate(row['Комм.: барьер доверия'], 38)
   }
   return ''
 }
@@ -363,7 +373,7 @@ export default function CandidateCardPage() {
         {blocks.map(function (blockType) {
           const Renderer = BLOCK_RENDERERS[blockType]
           const titleInfo = BLOCK_TITLES[blockType] || { num: '?', title: blockType }
-          const isPreview = blockType === 'structuring' || blockType === 'communication' || blockType === 'case-study' || blockType === 'prioritization'
+          const isPreview = blockType === 'structuring' || blockType === 'communication' || blockType === 'case-study' || blockType === 'prioritization' || blockType === 'commercial' || blockType === 'communication-cases'
           return (
             <Collapsible
               key={blockType}
