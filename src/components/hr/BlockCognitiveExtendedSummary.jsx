@@ -49,7 +49,12 @@ const cardTitle = {
 export default function BlockCognitiveExtendedSummary({ row }) {
   const cogScore = parseScore(row['Когнитивный'])
   const dataScore = parseScore(row['Когн. DATA'])
-  const timeOk = isTrue(row['Когн. время OK'])
+  // Статус времени показываем только если он РЕАЛЬНО известен в строке.
+  // Если колонки «Когн. время OK» у роли нет (undefined/пусто) — не выдумываем
+  // красный гейт: «неизвестно» ≠ «время вышло». Плашка тогда не показывается.
+  const timeRaw = row['Когн. время OK']
+  const timeKnown = timeRaw !== undefined && timeRaw !== null && timeRaw !== ''
+  const timeOk = isTrue(timeRaw)
 
   function colorByPct(pct) {
     if (pct === null || pct === undefined) return B.muted
@@ -75,19 +80,21 @@ export default function BlockCognitiveExtendedSummary({ row }) {
         />
       </div>
 
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 16px',
-        background: timeOk ? '#E8F5EE' : '#FBE6E6',
-        border: '1px solid ' + (timeOk ? '#1A7A3C' : '#C92020'),
-        borderRadius: SHAPE.input,
-        fontSize: 13,
-      }}>
-        <span style={{ fontSize: 16 }}>{timeOk ? '✓' : '⏱'}</span>
-        <span style={{ color: timeOk ? '#1A7A3C' : '#9B1818', fontWeight: 600 }}>
-          {timeOk ? 'Время блока уложился' : 'Время блока вышло (гейт)'}
-        </span>
-      </div>
+      {timeKnown && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 16px',
+          background: timeOk ? '#E8F5EE' : '#FBE6E6',
+          border: '1px solid ' + (timeOk ? '#1A7A3C' : '#C92020'),
+          borderRadius: SHAPE.input,
+          fontSize: 13,
+        }}>
+          <span style={{ fontSize: 16 }}>{timeOk ? '✓' : '⏱'}</span>
+          <span style={{ color: timeOk ? '#1A7A3C' : '#9B1818', fontWeight: 600 }}>
+            {timeOk ? 'Время блока уложился' : 'Время блока вышло (гейт)'}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
