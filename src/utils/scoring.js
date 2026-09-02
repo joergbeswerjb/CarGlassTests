@@ -699,3 +699,176 @@ export function buildPayloadCoS({
     breakdown:   overallResult.breakdown,
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── KAM (key-account-manager): 4 блока (cognitive / disc / commercial /  ──
+// ── communication), без визуала. Когнитив — calcCognitiveCoS (бонусные   ──
+// ── вне процента). OD/CoS-функции НЕ трогаем — KAM живёт своими.          ──
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * DISC KAM — та же теоретическая нормализация (-8..+16, 8 групп OD),
+ * но целевые зоны включают I (D+I+C), а порядок доминант допускает
+ * ведущего D ИЛИ I (order.alsoAcceptable). Проверка порядка — МЯГКАЯ.
+ */
+export function calcDiscKAM(answers, targets, order) {
+  const raw = { D: 0, I: 0, S: 0, C: 0 }
+  const flags = []
+
+  answers.forEach(({ most, least, options, type }) => {
+    if (most  != null) raw[options[most].d]  += 2
+    if (least != null) raw[options[least].d] -= 1
+    if (type === 'trap' && most != null) {
+      const flag = options[most].flag
+      if (flag) flags.push(flag)
+    }
+  })
+
+  const minTheoretical = -8
+  const maxTheoretical = 16
+  const range = maxTheoretical - minTheoretical
+
+  const norm = {}
+  Object.keys(raw).forEach(k => {
+    norm[k] = Math.max(0, Math.min(100, Math.round(((raw[k] - minTheoretical) / range) * 100)))
+  })
+
+  const sorted    = Object.entries(raw).sort((a, b) => b[1] - a[1])
+  const primary   = sorted[0][0]
+  const secondary = sorted[1][0]
+
+  // Целевые зоны KAM: D, I, C (S — информативно, в зачёт зон не входит).
+  const inZone = k => norm[k] >= targets[k].min && norm[k] <= targets[k].max
+  const targetMatch = { D: inZone('D'), I: inZone('I'), C: inZone('C') }
+  const inTargetZone = targetMatch.D && targetMatch.I && targetMatch.C
+
+  // МЯГКАЯ проверка порядка: ведущий должен быть D или I (alsoAcceptable).
+  // C-ведущий (аналитик без драйва) или S-ведущий (пассивный) — флаг, не провал.
+  let dominantOrderOk = true
+  if (order && order.primary) {
+    const acceptable = [order.primary].concat(order.alsoAcceptable || [])
+    dominantOrderOk = acceptable.includes(primary)
+    if (!dominantOrderOk && order.demoteIfPrimary &&
+        order.demoteIfPrimary.includes(primary)) {
+      flags.push('disc_profile_shifted')
+    }
+  }
+
+  return {
+    d: raw.D, i: raw.I, s: raw.S, c: raw.C,
+    normD: norm.D, normI: norm.I, normS: norm.S, normC: norm.C,
+    primary, secondary,
+    flags, targetMatch, inTargetZone, dominantOrderOk,
+  }
+}
+
+/**
+ * Overall KAM. 4 блока: cognitive / disc / commercial / communication.
+ * Открытые блоки — эвристика по длине до AI (тот же estimateOpenAnswerPct).
+ * DISC-вклад — попадание в зоны D+I+C с мягким штрафом за смещённый порядок.
+ */
+export function calcOverallKAM({ cog, disc, commercialAnswers, communicationAnswers, role }) {
+  const { weights, ranks, gates } = role
+  const flags = [...disc.flags]
+
+  // === ГЕЙТЫ ===
+  let gated = false
+  let gateReason = null
+  if (cog.pct < gates.cog_min_pct) {
+    gated = true
+    gateReason = `cog_score < ${gates.cog_min_pct}% (получено ${cog.pct}%)`
+  }
+  if (!cog.timeOk) {
+    gated = true
+    gateReason = gateReason || 'Не уложился во время по когнитивному блоку'
+  }
+  // profit_over_volume / defensive_under_pressure (critical_red) — в AI-слое.
+
+  // === DISC-вклад: зоны D+I+C, мягкий штраф за смещённый порядок ===
+  const zoneHits =
+    (disc.targetMatch.D ? 1 : 0) +
+    (disc.targetMatch.I ? 1 : 0) +
+    (disc.targetMatch.C ? 1 : 0)
+  let discTargetScore = (zoneHits / 3) * 100
+  if (!disc.dominantOrderOk) discTargetScore = Math.round(discTargetScore * 0.75) // мягкий -25%
+
+  // === Открытые блоки — эвристика по длине до AI ===
+  const commercialPct    = commercialAnswers    ? estimateOpenAnswerPct(Object.values(commercialAnswers))    : 0
+  const communicationPct = communicationAnswers ? estimateOpenAnswerPct(Object.values(communicationAnswers)) : 0
+
+  const overall_pct = gated ? 0 : Math.round(
+    cog.pct          * weights.cognitive +
+    discTargetScore  * weights.disc +
+    commercialPct    * weights.commercial +
+    communicationPct * weights.communication
+  )
+
+  let rank = 'D'
+  if (gated) rank = 'D'
+  else if (overall_pct >= ranks.A) rank = 'A'
+  else if (overall_pct >= ranks.B) rank = 'B'
+  else if (overall_pct >= ranks.C) rank = 'C'
+
+  return {
+    overall_pct, rank,
+    gated, gateReason,
+    flags,
+    breakdown: {
+      cognitive: cog.pct,
+      disc: Math.round(discTargetScore),
+      commercial: commercialPct,
+      communication: communicationPct,
+    },
+  }
+}
+
+/**
+ * Payload KAM для Google Sheets. Предметные колонки открытых блоков:
+ * 3 коммерческих кейса + 2 коммуникационных. Сырой ответ первичен.
+ * Ключи ответов — по id кейсов из questions/key-account-manager.js.
+ */
+export function buildPayloadKAM({
+  name, role,
+  cogResult, discResult,
+  commercialAnswers, communicationAnswers,
+  overallResult,
+}) {
+  return {
+    candidate_name: name,
+    lang: 'ru',
+    role: role.sheetName,
+    consent: 'да',
+    consent_at: new Date().toISOString(),
+
+    // Когнитивный (основные в pct; бонусные отдельно)
+    cog_score:   cogResult.score,
+    cog_max:     cogResult.max,
+    cog_pct:     cogResult.pct,
+    cog_time_ok: cogResult.timeOk,
+    cog_bonus:   `${cogResult.bonusScore}/${cogResult.bonusMax}`,
+    raw_cog:     cogResult,
+
+    // DISC
+    disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
+    disc_normD: discResult.normD, disc_normI: discResult.normI,
+    disc_normS: discResult.normS, disc_normC: discResult.normC,
+    disc_primary: discResult.primary, disc_secondary: discResult.secondary,
+    disc_target_match: discResult.inTargetZone,
+    disc_flags: discResult.flags.join(','),
+
+    // Открытые блоки — предметные колонки, сырое первично
+    commercial_first_deal:   (commercialAnswers && commercialAnswers.b1_first_deal)        || '',
+    commercial_market_entry: (commercialAnswers && commercialAnswers.b3_market_entry)      || '',
+    commercial_priorities:   (commercialAnswers && commercialAnswers.c1_launch_priorities) || '',
+    comm_trust_barrier:      (communicationAnswers && communicationAnswers.k1_trust_barrier) || '',
+    comm_sla_breach:         (communicationAnswers && communicationAnswers.k2_sla_breach)    || '',
+
+    // Итог
+    overall_pct: overallResult.overall_pct,
+    rank:        overallResult.rank,
+    gated:       overallResult.gated,
+    gate_reason: overallResult.gateReason || '',
+    flags:       overallResult.flags.join(','),
+    breakdown:   overallResult.breakdown,
+  }
+}
