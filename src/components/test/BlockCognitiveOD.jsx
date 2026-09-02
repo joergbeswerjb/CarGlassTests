@@ -6,8 +6,16 @@ import { useState, useEffect, useMemo } from 'react'
 import { B } from '../../utils/brand.js'
 
 function pickQuestions(bank, config) {
+  // Бонусные вопросы (config.bonusIds) НЕ участвуют в квотном отборе и не
+  // конкурируют за слоты категории — иначе они попадают в выборку случайно.
+  // Их тянем отдельно и ВСЕГДА, сверх квот (в процент/гейт не входят — это
+  // делает скоринг, исключая bonusIds из знаменателя).
+  const bonusIds = Array.isArray(config.bonusIds) ? config.bonusIds : []
+  const isBonus = q => bonusIds.indexOf(q.id) !== -1
+
   const byCategory = {}
   bank.forEach(q => {
+    if (isBonus(q)) return
     if (!byCategory[q.cat]) byCategory[q.cat] = []
     byCategory[q.cat].push(q)
   })
@@ -24,7 +32,10 @@ function pickQuestions(bank, config) {
     }
   })
 
-  // Финальный шафл, чтобы DATA не шли подряд
+  // Бонусные — всегда в выборку, сверх квот
+  bank.forEach(q => { if (isBonus(q)) selected.push(q) })
+
+  // Финальный шафл, чтобы DATA/бонусные не шли подряд
   return selected.sort(() => Math.random() - 0.5)
 }
 
