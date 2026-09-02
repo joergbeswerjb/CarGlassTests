@@ -28,7 +28,10 @@ export async function saveAssessment(payload) {
  * @returns {Promise<Array<object>>}
  */
 export async function fetchAssessments(role) {
-  const url = SHEETS_URL + '?action=get&role=' + encodeURIComponent(role)
+  // light=1 — Apps Script не кладёт тяжёлую колонку «Сырые данные» в ответ.
+  // Фронт её не читает (нужна только бэкенду для визуал-оценки), поэтому
+  // облегчаем и список, и карточку — меньше трафика и парсинга.
+  const url = SHEETS_URL + '?action=get&role=' + encodeURIComponent(role) + '&light=1'
   const res  = await fetch(url)
   const json = await res.json()
   if (!json.ok) throw new Error(json.error || 'Fetch failed')
