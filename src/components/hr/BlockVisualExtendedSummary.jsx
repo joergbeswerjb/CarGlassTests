@@ -177,6 +177,7 @@ export default function BlockVisualExtendedSummary({ row }) {
 
   const id = row['ID']
   const role = row['Роль']
+  const hasId = id !== undefined && id !== null && String(id) !== ''
   const payload = parsePayload(row)
   const observations = getObservations(payload)
   const total = totalViolations(payload)
@@ -192,8 +193,8 @@ export default function BlockVisualExtendedSummary({ row }) {
     })
   }
 
-  // Совсем нет данных — ни примечаний, ни разбора: только тогда мягкая заглушка.
-  if (!observations.length && !evalResult) {
+  // Мягкая заглушка — ТОЛЬКО когда запустить оценку нечем (нет id): ни примечаний, ни разбора, ни способа посчитать.
+  if (!observations.length && !evalResult && !hasId) {
     const pctRaw = row['Визуал. %']
     const pctL = pctRaw !== undefined && pctRaw !== null && pctRaw !== '' ? Number(pctRaw) : null
     return (
@@ -206,10 +207,12 @@ export default function BlockVisualExtendedSummary({ row }) {
     )
   }
 
+  const hasRaw = observations.length > 0
+
   return (
     <div>
-      {/* 1) СЫРОЙ ОТВЕТ КАНДИДАТА — ВСЕГДА ПЕРВЫМ */}
-      <RawNotes observations={observations} />
+      {/* 1) СЫРОЙ ОТВЕТ КАНДИДАТА — ВСЕГДА ПЕРВЫМ, если он дошёл до панели */}
+      {hasRaw && <RawNotes observations={observations} />}
 
       {/* 2) AI-разбор — вторичен */}
       {evalResult ? (
@@ -220,13 +223,19 @@ export default function BlockVisualExtendedSummary({ row }) {
           onRerun={runEval} loading={loading} error={error}
         />
       ) : (
-        <div style={{ borderTop: '1px solid ' + B.border, paddingTop: 14 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-            <MetricCard title="Отмечено наблюдений" value={String(obsCount)} hint={total !== null ? 'нарушений в сценах: ' + total : null} color={B.text} />
-            <MetricCard title="AI-оценка" value="не запущена" color={B.muted} />
-          </div>
+        <div style={hasRaw ? { borderTop: '1px solid ' + B.border, paddingTop: 14 } : {}}>
+          {hasRaw ? (
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <MetricCard title="Отмечено наблюдений" value={String(obsCount)} hint={total !== null ? 'нарушений в сценах: ' + total : null} color={B.text} />
+              <MetricCard title="AI-оценка" value="не запущена" color={B.muted} />
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: B.text, lineHeight: 1.6, marginBottom: 12 }}>
+              Сырые примечания кандидата не пришли в панель вместе со строкой, но они есть в записи. Запустите AI-оценку — она читает ответы кандидата напрямую на сервере и покажет найденное, пропущенное и сами формулировки.
+            </div>
+          )}
           <div style={{ fontSize: 12, color: B.muted, marginBottom: 10, lineHeight: 1.5 }}>
-            Число отметок ≠ точность. Запустите оценку, чтобы увидеть, что из отмеченного — реальные нарушения, а что шум.
+            Число отметок ≠ точность: оценка сверяет примечания с эталоном сцены.
           </div>
           <button onClick={runEval} disabled={loading} style={{
             padding: '10px 20px', background: loading ? B.light : B.primary,
