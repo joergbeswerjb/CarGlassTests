@@ -61,13 +61,44 @@ function parseEval(row) {
   return null
 }
 
-// «Сырые данные» → payload или null
-function parsePayload(row) {
+// Строка/объект → объект JSON (не массив) или null
+function tryParseObj(v) {
+  if (!v) return null
+  if (typeof v === 'object') return Array.isArray(v) ? null : v
+  if (typeof v !== 'string') return null
+  const s = v.trim()
+  if (s.charAt(0) !== '{') return null
   try {
-    const raw = row['Сырые данные']
-    const p = typeof raw === 'string' ? JSON.parse(raw) : raw
-    if (p && typeof p === 'object') return p
-  } catch (e) { /* ignore */ }
+    const o = JSON.parse(s)
+    return (o && typeof o === 'object' && !Array.isArray(o)) ? o : null
+  } catch (e) { return null }
+}
+
+// Похоже ли на payload сохранения (а не на JSON AI-флагов и т.п.)
+function looksLikePayload(o) {
+  return !!o && (
+    Array.isArray(o.vis_observations) ||
+    Array.isArray(o.raw_vis_marks) ||
+    o.vis_pct !== undefined ||
+    o.struct_questions !== undefined ||
+    o.overall_pct !== undefined
+  )
+}
+
+// Достаём payload из строки, не завися от точного имени колонки:
+// сначала известные имена, потом скан всех значений строки.
+function parsePayload(row) {
+  if (!row) return null
+  const keys = ['Сырые данные', 'Сырые данные ', ' Сырые данные', 'Raw', 'raw',
+                'payload', 'Payload', 'JSON', 'Данные', 'Raw JSON']
+  for (let i = 0; i < keys.length; i++) {
+    const o = tryParseObj(row[keys[i]])
+    if (looksLikePayload(o)) return o
+  }
+  for (const k in row) {
+    const o = tryParseObj(row[k])
+    if (looksLikePayload(o)) return o
+  }
   return null
 }
 
