@@ -2,11 +2,12 @@
 // Диспетчер: читает cfg из hr-config, маппит типы блоков на компоненты, рендерит.
 // Блоки 1-5 свёрнуты в Collapsible (метрика/превью в заголовке); скоркард всегда открыт.
 // Глобальный тумблер «Развернуть всё / Свернуть всё» синхронизирует все блоки.
+// v10: панель «Оценить кейсы (AI)» — рубричная оценка Блок 4/5 + пересчёт Итога.
 
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { B, SHAPE } from '../utils/brand.js'
-import { fetchAssessments, deleteAssessment } from '../utils/api.js'
+import { fetchAssessments, deleteAssessment, generateCaseEval, recomputeOverall } from '../utils/api.js'
 import { HR_CONFIG } from '../data/hr-config.js'
 import { formatDateLong } from '../utils/hr-format.js'
 
@@ -119,10 +120,10 @@ function blockMeta(blockType, row) {
     return 'не оценён'
   }
   if (blockType === 'structuring') {
-    return truncate(row['Структ. вопросы'], 38)
+    return caseBlockMeta(row['AI оценка Блок 4'], row['Структ. вопросы'])
   }
   if (blockType === 'communication') {
-    return truncate(row['Комм. кейс 1'], 38)
+    return caseBlockMeta(row['AI оценка Блок 5'], row['Комм. кейс 1'])
   }
   if (blockType === 'case-study') {
     return truncate(row['Кейс: сравнение RU'], 38)
@@ -137,6 +138,229 @@ function blockMeta(blockType, row) {
     return truncate(row['Комм.: барьер доверия'], 38)
   }
   return ''
+}
+
+// Для блоков 4/5: если есть AI-оценка — показываем % в заголовке, иначе превью ответа.
+function caseBlockMeta(aiRaw, fallbackText) {
+  if (aiRaw) {
+    try {
+      const o = typeof aiRaw === 'string' ? JSON.parse(aiRaw) : aiRaw
+      if (o && typeof o.pct === 'number') {
+        const rf = o.red_flags && o.red_flags.length ? ' · ⚑ ' + o.red_flags.length : ''
+        return 'AI: ' + o.pct + '%' + rf
+      }
+    } catch (e) { /* битый JSON — упадём в превью */ }
+  }
+  return truncate(fallbackText, 38)
+}
+
+// ============================================================
+// Панель «Оценить кейсы (AI)» — рубричная оценка Блок 4/5 + пересчёт Итога
+// ============================================================
+function pctColor(p) {
+  if (p === null || p === undefined) return B.muted
+  if (p >= 70) return '#1B7A3D'
+  if (p >= 45) return '#B8860B'
+  return '#9B1818'
+}
+
+function CriteriaList({ title, pct, detail }) {
+  const criteria = (detail && detail.criteria) || []
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: B.text }}>{title}</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: pctColor(pct) }}>
+          {pct === null || pct === undefined ? '—' : pct + '%'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {criteria.map(function (c) {
+          return (
+            <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{
+                fontSize: 13, lineHeight: '18px', fontWeight: 700,
+                color: c.met ? '#1B7A3D' : '#B0B0B0', minWidth: 14,
+              }}>
+                {c.met ? '✓' : '✗'}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, color: c.met ? B.text : B.muted, lineHeight: 1.4 }}>
+                  {c.label} <span style={{ color: B.muted }}>· вес {c.weight}</span>
+                </div>
+                {c.evidence ? (
+                  <div style={{
+                    fontSize: 11.5, color: B.muted, fontStyle: 'italic',
+                    marginTop: 2, lineHeight: 1.4,
+                  }}>
+                    {c.evidence}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function CaseEvalPanel({ id, role, onDone }) {
+  const [state, setState] = useState('idle')   // idle | loading | done | error
+  const [cases, setCases] = useState(null)
+  const [overall, setOverall] = useState(null)
+  const [errMsg, setErrMsg] = useState('')
+
+  function run(fn, failLabel) {
+    setState('loading')
+    setErrMsg('')
+    fn()
+      .then(function (res) {
+        if (res && res.cases) setCases(res.cases)
+        // generate_case_eval → { cases, overall }; recompute_overall → overall-объект
+        const ov = res && res.overall !== undefined ? res.overall : res
+        setOverall(ov)
+        setState('done')
+        if (onDone) onDone()   // перезагрузить строку → обновить сводку (Итог/Ранг/Гейт)
+      })
+      .catch(function (e) {
+        setErrMsg((e && e.message) || failLabel)
+        setState('error')
+      })
+  }
+
+  const redFlags = (cases && Array.isArray(cases.red_flags)) ? cases.red_flags : []
+
+  return (
+    <div style={{
+      background: B.white, border: '1px solid ' + B.border,
+      borderRadius: SHAPE.card, padding: '18px 20px', marginTop: 14,
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', gap: 12, flexWrap: 'wrap',
+      }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: B.text }}>
+            Оценка кейсов (AI) — Блок 4 / Блок 5
+          </div>
+          <div style={{ fontSize: 12, color: B.muted, marginTop: 3, lineHeight: 1.5 }}>
+            AI отмечает критерии рубрики, балл считает код — по смыслу, не по длине.
+            Итог % и ранг пересчитываются сразу.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            onClick={function () { run(function () { return generateCaseEval(id, role) }, 'Ошибка оценки кейсов') }}
+            disabled={state === 'loading'}
+            style={{
+              padding: '10px 18px', background: B.primary || '#0F3876', color: '#FFFFFF',
+              border: 'none', borderRadius: SHAPE.input, fontSize: 13, fontWeight: 600,
+              cursor: state === 'loading' ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit', opacity: state === 'loading' ? 0.6 : 1, whiteSpace: 'nowrap',
+            }}
+          >
+            {state === 'loading' ? 'Оценка… (AI, ~15–30 сек)' : state === 'done' ? 'Оценить заново' : 'Оценить кейсы (AI)'}
+          </button>
+        </div>
+      </div>
+
+      {/* Вторичная ссылка: пересчитать Итог без повторного вызова AI */}
+      {state !== 'loading' && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            onClick={function () { run(function () { return recomputeOverall(id, role) }, 'Ошибка пересчёта') }}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: B.muted, fontSize: 12, padding: 0, fontFamily: 'inherit',
+              textDecoration: 'underline',
+            }}
+          >
+            только пересчитать Итог (без повторной AI-оценки)
+          </button>
+        </div>
+      )}
+
+      {state === 'error' && (
+        <div style={{
+          marginTop: 14, padding: '10px 12px', background: '#FDECEC',
+          border: '1px solid #E7B4B4', borderRadius: SHAPE.input,
+          color: '#9B1818', fontSize: 12.5, lineHeight: 1.5,
+        }}>
+          {errMsg || 'Не удалось выполнить. Проверь, что кейсы заполнены и бэкенд на v20.'}
+        </div>
+      )}
+
+      {state === 'done' && (
+        <div style={{ marginTop: 16, borderTop: '1px solid ' + B.border, paddingTop: 16 }}>
+          {/* Новый Итог */}
+          {overall && overall.ok && (
+            <div style={{
+              display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center',
+              marginBottom: 16, padding: '10px 14px',
+              background: B.light, borderRadius: SHAPE.input,
+            }}>
+              <div>
+                <span style={{ fontSize: 11, color: B.muted, textTransform: 'uppercase', letterSpacing: '.06em' }}>Итог</span>
+                <div style={{ fontSize: 22, fontWeight: 700, color: pctColor(overall.overall_pct) }}>
+                  {overall.overall_pct}%
+                </div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, color: B.muted, textTransform: 'uppercase', letterSpacing: '.06em' }}>Ранг</span>
+                <div style={{ fontSize: 22, fontWeight: 700, color: B.text }}>{overall.rank}</div>
+              </div>
+              <div style={{ fontSize: 12, color: B.muted, flex: 1, minWidth: 180, lineHeight: 1.5 }}>
+                Пересчитано по реальным баллам: когнитивный, DISC, визуал, структурирование и коммуникация.
+                {overall.gated ? ' Гейт сработал (нокаут).' : ' Гейт-режим: флаг — профиль не обнулён.'}
+              </div>
+            </div>
+          )}
+          {overall && overall.ok === false && overall.needCases && (
+            <div style={{
+              marginBottom: 14, padding: '10px 12px', background: '#FFF7E6',
+              border: '1px solid #E8D08A', borderRadius: SHAPE.input,
+              color: '#8A6D1B', fontSize: 12.5, lineHeight: 1.5,
+            }}>
+              Итог не пересчитан: кейсы ещё не оценены AI. Нажми «Оценить кейсы (AI)».
+            </div>
+          )}
+
+          {/* Красные флаги — наверху, заметно */}
+          {redFlags.length > 0 && (
+            <div style={{
+              marginBottom: 16, padding: '12px 14px', background: '#FDECEC',
+              border: '1px solid #E7B4B4', borderRadius: SHAPE.input,
+            }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#9B1818', marginBottom: 6 }}>
+                ⚑ Красные флаги ({redFlags.length})
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#9B1818', fontSize: 12.5, lineHeight: 1.5 }}>
+                {redFlags.map(function (f, i) {
+                  const txt = typeof f === 'string' ? f : (f.quote || f.text || JSON.stringify(f))
+                  return <li key={i} style={{ marginBottom: 3 }}>{txt}</li>
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Разбор по рубрике */}
+          {cases && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+              <CriteriaList title="Структурирование (Блок 4)" pct={cases.struct_pct} detail={cases.struct_detail} />
+              <CriteriaList title="Коммуникация (Блок 5)" pct={cases.comm_pct} detail={cases.comm_detail} />
+            </div>
+          )}
+
+          {cases && cases.summary ? (
+            <div style={{ marginTop: 10, fontSize: 12.5, color: B.muted, fontStyle: 'italic', lineHeight: 1.5 }}>
+              {cases.summary}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ============================================================
@@ -213,13 +437,14 @@ export default function CandidateCardPage() {
     setForceKey(function (k) { return k + 1 })
   }
 
-  useEffect(function () {
+  // Загрузка строки кандидата. showLoading=false — тихий рефреш (после AI-оценки).
+  function load(showLoading) {
     if (!cfg) {
       setError('role-not-configured')
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (showLoading) setLoading(true)
     setError(null)
     fetchAssessments(cfg.sheetName)
       .then(function (rows) {
@@ -235,8 +460,13 @@ export default function CandidateCardPage() {
         setError(e.message || 'Fetch failed')
       })
       .finally(function () {
-        setLoading(false)
+        if (showLoading) setLoading(false)
       })
+  }
+
+  useEffect(function () {
+    load(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleSlug, id])
 
   function handleDelete() {
@@ -319,6 +549,8 @@ export default function CandidateCardPage() {
   // ─── Карточка ───
   const blocks = cfg.cardBlocks || []
   const aiSections = cfg.aiSections || []
+  // Панель оценки кейсов — только для ролей с открытыми блоками структ./комм.
+  const hasCaseBlocks = blocks.indexOf('structuring') >= 0 || blocks.indexOf('communication') >= 0
 
   return (
     <div style={{ background: B.light, minHeight: '100vh' }}>
@@ -351,6 +583,15 @@ export default function CandidateCardPage() {
 
         {/* Краткая сводка — всегда открыта */}
         <CardSummary row={row} cfg={cfg} />
+
+        {/* Оценка кейсов (AI) + пересчёт Итога */}
+        {hasCaseBlocks && (
+          <CaseEvalPanel
+            id={id}
+            role={cfg.sheetName}
+            onDone={function () { load(false) }}
+          />
+        )}
 
         {/* Глобальный тумблер */}
         {blocks.length > 0 && (
