@@ -208,17 +208,46 @@ export function calcOverallOD({ cog, disc, vis, structuring, communication, role
   const { weights, ranks, gates } = role
   const flags = [...disc.flags]   // флаги из DISC
 
+  // Режим гейта задаётся в конфиге роли: gates.cog_mode
+  //   'hard' (по умолчанию для линейных ролей) — нокаут: overall=0, ранг D.
+  //   'flag' (сеньорные роли, в т.ч. ОД) — НЕ обнуляет: считаем честный overall,
+  //          а низкую когнитивку/таймаут помечаем флагом «проверить».
+  // Принцип: тест — фильтр, интервью — приговор. Для сеньора когнитивка на
+  // границе не должна уничтожать сильный профиль до собеседования.
+  const gateMode = (gates && gates.cog_mode) || 'hard'
+
   // === ГЕЙТЫ ===
-  let gated = false
+  let gated = false          // true только в жёстком режиме (реально обнуляет)
   let gateReason = null
 
-  if (cog.pct < gates.cog_min_pct) {
-    gated = true
-    gateReason = `cog_score < ${gates.cog_min_pct}% (получено ${cog.pct}%)`
+  const cogBelow = cog.pct < gates.cog_min_pct
+  const timeBad = !cog.timeOk
+
+  if (cogBelow) {
+    const reason = `cog_score < ${gates.cog_min_pct}% (получено ${cog.pct}%)`
+    if (gateMode === 'hard') { gated = true; gateReason = reason }
+    else {
+      flags.push({
+        type: 'Низкая когнитивка',
+        severity: 'yellow',
+        quote: `Когнитивный блок: ${cog.pct}% при пороге ${gates.cog_min_pct}%`,
+        explanation: 'Когнитивный результат ниже целевого порога роли. Это не нокаут: остальной профиль (визуал, DISC, кейсы) учтён в общем балле. Проверить скорость мышления и работу с числами на собеседовании.',
+        role_implication: 'Низкая когнитивка под высоким D основателя — риск в скорости разбора, но компенсируется, если сильны структурирование и стандарты. Решение — за интервью.',
+      })
+    }
   }
-  if (!cog.timeOk) {
-    gated = true
-    gateReason = gateReason || 'Не уложился во время по когнитивному блоку'
+  if (timeBad) {
+    const reason = 'Не уложился во время по когнитивному блоку'
+    if (gateMode === 'hard') { gated = true; gateReason = gateReason || reason }
+    else {
+      flags.push({
+        type: 'Таймаут когнитивного блока',
+        severity: 'yellow',
+        quote: 'Когнитивный блок не завершён в отведённое время',
+        explanation: 'Кандидат не уложился в таймер когнитивного блока. Учтено как флаг, не как нокаут. Уточнить на собеседовании, была ли это нехватка времени или скорости.',
+        role_implication: 'Проверить на интервью: работа под временным давлением — часть роли ОД.',
+      })
+    }
   }
   // На точке 2 critical_red флаги от AI ещё не работают (заглушка),
   // на точке 3 здесь будет проверка флагов из communication
@@ -238,6 +267,7 @@ export function calcOverallOD({ cog, disc, vis, structuring, communication, role
   // === Коммуникация — на точке 2 без AI-оценки ===
   const commPct = communication ? estimateOpenAnswerPct(communication.map(c => c.answer)) : 0
 
+  // В жёстком режиме (gated) overall обнуляется. В флаговом — честный взвешенный балл.
   const overall_pct = gated ? 0 : Math.round(
     cog.pct          * weights.cognitive +
     discTargetScore  * weights.disc +
@@ -248,10 +278,12 @@ export function calcOverallOD({ cog, disc, vis, structuring, communication, role
 
   let rank = 'D'
   if (gated) {
-    rank = 'D'
+    rank = 'D'                                  // жёсткий нокаут
   } else if (overall_pct >= ranks.A) rank = 'A'
   else if (overall_pct >= ranks.B) rank = 'B'
   else if (overall_pct >= ranks.C) rank = 'C'
+  // В флаговом режиме ранг честный (A–D по overall), даже если когнитивка низкая —
+  // флаг «проверить» уже в flags, информация о кандидате не теряется.
 
   return {
     overall_pct, rank,
@@ -342,526 +374,6 @@ export function buildPayloadOD({
     comm_case3: (communicationAnswers[2] && communicationAnswers[2].answer) || '',
     comm_pct:   overallResult.breakdown.communication,
     comm_ai_eval: 'PENDING',           // заполнится на точке 3
-
-    // Итог
-    overall_pct: overallResult.overall_pct,
-    rank:        overallResult.rank,
-    gated:       overallResult.gated,
-    gate_reason: overallResult.gateReason || '',
-    flags:       overallResult.flags.join(','),
-    breakdown:   overallResult.breakdown,
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// ── BASIC (office-universal: когнитивка по тирам + описательный DISC) ──
-// ═══════════════════════════════════════════════════════════════════════
-
-/**
- * Когнитивный блок с тирами.
- * Итог — не одно число, а раскладка «докуда дошёл»: сколько взято в каждом тире.
- * Гейт — только базовый тир (низкий пол, общий для всех вакансий).
- */
-export function calcCognitiveTiered(result, config) {
-  const answers = result.answers || []
-  const questions = result.questions || []
-
-  const tiers = {}
-  config.tierOrder.forEach(function (tier) {
-    const total = questions.filter(function (q) { return q.tier === tier }).length
-    const given = answers.filter(function (a) { return a.tier === tier })
-    const score = given.filter(function (a) { return a.isCorrect }).length
-    tiers[tier] = {
-      score: score,
-      max: total,
-      pct: total > 0 ? Math.round((score / total) * 100) : 0,
-      label: config.tierLabels[tier] || tier,
-    }
-  })
-
-  const score = answers.filter(function (a) { return a.isCorrect }).length
-  const max = questions.length
-  const pct = max > 0 ? Math.round((score / max) * 100) : 0
-
-  // Уровень кандидата — самый высокий тир, взятый не ниже порога.
-  // Подписи берутся из ceilingLabels, а не из названий тиров.
-  const labels = config.ceilingLabels || config.tierLabels
-  let ceiling = config.ceilingNone || '—'
-  config.tierOrder.forEach(function (tier) {
-    if (tiers[tier].pct >= config.ceilingThresholdPct) ceiling = labels[tier] || tiers[tier].label
-  })
-
-  // Гейт по базовому тиру
-  const gateTier = tiers[config.gate.tier]
-  const gatePassed = gateTier ? gateTier.score >= config.gate.minCorrect : false
-
-  return {
-    score: score,
-    max: max,
-    pct: pct,
-    tiers: tiers,
-    ceiling: ceiling,
-    unanswered: result.unanswered !== undefined ? result.unanswered : (max - answers.length),
-    timeSec: result.totalTime || 0,
-    timeOk: result.timeOk !== false,
-    gatePassed: gatePassed,
-    gateReason: gatePassed ? '' : 'Базовый тир ниже минимума (' +
-      (gateTier ? gateTier.score : 0) + '/' + (gateTier ? gateTier.max : 0) +
-      ', нужно ' + config.gate.minCorrect + ')',
-  }
-}
-
-/**
- * DISC описательный (office-universal).
- * Отличия от calcDiscOD: в баллы идут только зачётные группы (ловушки исключены),
- * границы теоретического диапазона берутся из конфига роли, а не хардкодятся.
- * Целевого профиля нет — вердикт «подходит/не подходит» не выводится.
- */
-export function calcDiscBasic(answers, discConfig) {
-  const raw = { D: 0, I: 0, S: 0, C: 0 }
-  const scoredTypes = discConfig.scoredTypes || ['profile']
-
-  answers.forEach(function (ans) {
-    if (scoredTypes.indexOf(ans.type) < 0) return
-    if (ans.most != null) raw[ans.options[ans.most].d] += 2
-    if (ans.least != null) raw[ans.options[ans.least].d] -= 1
-  })
-
-  const minT = discConfig.minTheoretical
-  const maxT = discConfig.maxTheoretical
-  const range = maxT - minT
-
-  const norm = {}
-  Object.keys(raw).forEach(function (k) {
-    norm[k] = Math.max(0, Math.min(100, Math.round(((raw[k] - minT) / range) * 100)))
-  })
-
-  const sorted = Object.entries(raw).sort(function (a, b) { return b[1] - a[1] })
-  const primary = sorted[0][0]
-  const secondary = sorted[1][0]
-
-  // Ловушки: сверяем букву «Больше всего» в ловушке и в её зеркале
-  const mostLetterById = {}
-  answers.forEach(function (ans) {
-    if (ans.most != null) mostLetterById[ans.groupId] = ans.options[ans.most].d
-  })
-  const mismatches = []
-  answers.forEach(function (ans) {
-    if (ans.type !== 'trap' || !ans.mirrorOf) return
-    const mirror = mostLetterById[ans.mirrorOf]
-    const own = mostLetterById[ans.groupId]
-    if (mirror && own && mirror !== own) {
-      mismatches.push(ans.mirrorOf + '/' + ans.groupId)
-    }
-  })
-
-  return {
-    d: raw.D, i: raw.I, s: raw.S, c: raw.C,
-    normD: norm.D, normI: norm.I, normS: norm.S, normC: norm.C,
-    primary: primary,
-    secondary: secondary,
-    trapMismatches: mismatches,
-    trapsConsistent: mismatches.length === 0,
-  }
-}
-
-/**
- * Payload для office-universal.
- * Композитного балла нет намеренно: DISC описательный, сворачивать его
- * в единое число значило бы превратить характер в приговор.
- */
-export function buildPayloadBasic({ name, vacancy, role, cogResult, discResult }) {
-  return {
-    candidate_name: name,
-    lang: 'ru',
-    role: role.sheetName,
-    vacancy: vacancy || '',
-    consent: 'да',
-    consent_at: new Date().toISOString(),
-
-    // Когнитивный — общий счёт + раскладка по тирам
-    cog_score: cogResult.score,
-    cog_max: cogResult.max,
-    cog_pct: cogResult.pct,
-    cog_t1: cogResult.tiers.t1.score, cog_t1_max: cogResult.tiers.t1.max,
-    cog_t2: cogResult.tiers.t2.score, cog_t2_max: cogResult.tiers.t2.max,
-    cog_t3: cogResult.tiers.t3.score, cog_t3_max: cogResult.tiers.t3.max,
-    cog_level: cogResult.ceiling,
-    cog_unanswered: cogResult.unanswered,
-    cog_time_sec: cogResult.timeSec,
-    raw_cog: cogResult,
-
-    // Гейт — только базовый тир
-    gated: !cogResult.gatePassed,
-    gate_reason: cogResult.gateReason,
-
-    // DISC — описательный
-    disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
-    disc_normD: discResult.normD, disc_normI: discResult.normI,
-    disc_normS: discResult.normS, disc_normC: discResult.normC,
-    disc_primary: discResult.primary,
-    disc_secondary: discResult.secondary,
-    disc_flags: discResult.trapsConsistent ? '' : 'расхождение: ' + discResult.trapMismatches.join(', '),
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// ── CoS (chief-of-staff): 4 блока, без визуала, бонусные вне процента ──
-// ── OD-функции НЕ трогаем: CoS живёт своими функциями (безопасно) ──
-// ═══════════════════════════════════════════════════════════════════════
-
-/**
- * Когнитивный CoS. Отличие от calcCognitiveOD: БОНУСНЫЕ вопросы
- * (config.bonusIds) исключаются из процента и гейта — считаются отдельно.
- * Провал бонуса не может утопить кандидата ниже порога.
- */
-export function calcCognitiveCoS(result, config) {
-  const { answers, timeOk } = result
-  const bonusIds = (config && config.bonusIds) || []
-
-  const main  = answers.filter(a => !bonusIds.includes(a.id))
-  const bonus = answers.filter(a =>  bonusIds.includes(a.id))
-
-  const score = main.filter(a => a.isCorrect).length
-  const max   = main.length
-  const pct   = max > 0 ? Math.round((score / max) * 100) : 0
-
-  const bonusScore = bonus.filter(a => a.isCorrect).length
-  const bonusMax   = bonus.length
-
-  return { score, max, pct, timeOk, bonusScore, bonusMax }
-}
-
-/**
- * DISC CoS — та же теоретическая нормализация, что calcDiscOD,
- * но с целевыми зонами CoS и МЯГКОЙ проверкой порядка доминант.
- * targets = DISC_TARGETS роли, order = DISC_DOMINANT_ORDER роли.
- */
-export function calcDiscCoS(answers, targets, order) {
-  const raw = { D: 0, I: 0, S: 0, C: 0 }
-  const flags = []
-
-  answers.forEach(({ most, least, options, type }) => {
-    if (most  != null) raw[options[most].d]  += 2
-    if (least != null) raw[options[least].d] -= 1
-    if (type === 'trap' && most != null) {
-      const flag = options[most].flag
-      if (flag) flags.push(flag)
-    }
-  })
-
-  // Теоретический диапазон (8 групп): min -8, max +16 — как у OD.
-  const minTheoretical = -8
-  const maxTheoretical = 16
-  const range = maxTheoretical - minTheoretical
-
-  const norm = {}
-  Object.keys(raw).forEach(k => {
-    norm[k] = Math.max(0, Math.min(100, Math.round(((raw[k] - minTheoretical) / range) * 100)))
-  })
-
-  const sorted    = Object.entries(raw).sort((a, b) => b[1] - a[1])
-  const primary   = sorted[0][0]
-  const secondary = sorted[1][0]
-
-  // Попадание в целевые зоны CoS (C-ведущий, сильный S, D сдержан)
-  const inZone = k => norm[k] >= targets[k].min && norm[k] <= targets[k].max
-  const targetMatch = { D: inZone('D'), S: inZone('S'), C: inZone('C') }
-  const inTargetZone = targetMatch.D && targetMatch.S && targetMatch.C
-
-  // МЯГКАЯ проверка порядка доминант: ведущая должна быть order.primary (C).
-  // Если ведущий из demoteIfPrimary (D) — флаг «профиль смещён», не провал.
-  let dominantOrderOk = true
-  if (order && order.primary) {
-    dominantOrderOk = (primary === order.primary)
-    if (!dominantOrderOk && order.demoteIfPrimary &&
-        order.demoteIfPrimary.includes(primary)) {
-      flags.push('disc_profile_shifted')  // мягкий: второй таран, не доводчик
-    }
-  }
-
-  return {
-    d: raw.D, i: raw.I, s: raw.S, c: raw.C,
-    normD: norm.D, normI: norm.I, normS: norm.S, normC: norm.C,
-    primary, secondary,
-    flags,
-    targetMatch,
-    inTargetZone,
-    dominantOrderOk,
-  }
-}
-
-/**
- * Overall CoS. 4 блока: cognitive / disc / case_study / prioritization.
- * DISC-вклад — близость к якорю (зоны) с мягким штрафом за смещённый порядок.
- * Открытые блоки — эвристика по длине до AI (как у OD, тот же estimateOpenAnswerPct).
- */
-export function calcOverallCoS({ cog, disc, caseAnswers, prioAnswers, role }) {
-  const { weights, ranks, gates } = role
-  const flags = [...disc.flags]
-
-  // === ГЕЙТЫ ===
-  let gated = false
-  let gateReason = null
-  if (cog.pct < gates.cog_min_pct) {
-    gated = true
-    gateReason = `cog_score < ${gates.cog_min_pct}% (получено ${cog.pct}%)`
-  }
-  if (!cog.timeOk) {
-    gated = true
-    gateReason = gateReason || 'Не уложился во время по когнитивному блоку'
-  }
-  // EN-нокаут и critical_red — в AI-слое (Apps Script), не здесь.
-
-  // === DISC-вклад: попадание в зоны, мягкий штраф за смещённый порядок ===
-  const zoneHits =
-    (disc.targetMatch.C ? 1 : 0) +
-    (disc.targetMatch.S ? 1 : 0) +
-    (disc.targetMatch.D ? 1 : 0)
-  let discTargetScore = (zoneHits / 3) * 100
-  if (!disc.dominantOrderOk) discTargetScore = Math.round(discTargetScore * 0.75) // мягкий −25%
-
-  // === Открытые блоки — эвристика по длине до AI ===
-  const casePct = caseAnswers ? estimateOpenAnswerPct(Object.values(caseAnswers)) : 0
-  const prioPct = prioAnswers ? estimateOpenAnswerPct(Object.values(prioAnswers)) : 0
-
-  const overall_pct = gated ? 0 : Math.round(
-    cog.pct         * weights.cognitive +
-    discTargetScore * weights.disc +
-    casePct         * weights.case_study +
-    prioPct         * weights.prioritization
-  )
-
-  let rank = 'D'
-  if (gated) rank = 'D'
-  else if (overall_pct >= ranks.A) rank = 'A'
-  else if (overall_pct >= ranks.B) rank = 'B'
-  else if (overall_pct >= ranks.C) rank = 'C'
-
-  return {
-    overall_pct, rank,
-    gated, gateReason,
-    flags,
-    breakdown: {
-      cognitive: cog.pct,
-      disc: Math.round(discTargetScore),
-      case_study: casePct,
-      prioritization: prioPct,
-    },
-  }
-}
-
-/**
- * Payload CoS для Google Sheets. Колонки предметные:
- * «Кейс: сравнение RU», «Кейс: письмо EN», «Приоритизация».
- * Сырой ответ первичен.
- */
-export function buildPayloadCoS({
-  name, role,
-  cogResult, discResult,
-  caseAnswers, prioAnswers,
-  overallResult,
-}) {
-  return {
-    candidate_name: name,
-    lang: 'ru',
-    role: role.sheetName,
-    consent: 'да',
-    consent_at: new Date().toISOString(),
-
-    // Когнитивный (основные в pct; бонусные отдельно)
-    cog_score:   cogResult.score,
-    cog_max:     cogResult.max,
-    cog_pct:     cogResult.pct,
-    cog_time_ok: cogResult.timeOk,
-    cog_bonus:   `${cogResult.bonusScore}/${cogResult.bonusMax}`,
-    raw_cog:     cogResult,
-
-    // DISC
-    disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
-    disc_normD: discResult.normD, disc_normI: discResult.normI,
-    disc_normS: discResult.normS, disc_normC: discResult.normC,
-    disc_primary: discResult.primary, disc_secondary: discResult.secondary,
-    disc_target_match: discResult.inTargetZone,
-    disc_flags: discResult.flags.join(','),
-
-    // Открытые блоки — предметные колонки, сырое первично
-    case_comparison_ru: (caseAnswers && caseAnswers.comparison_ru) || '',
-    case_letter_en:     (caseAnswers && caseAnswers.letter_en)     || '',
-    prioritization:     (prioAnswers && prioAnswers.decision)      || '',
-
-    // Итог
-    overall_pct: overallResult.overall_pct,
-    rank:        overallResult.rank,
-    gated:       overallResult.gated,
-    gate_reason: overallResult.gateReason || '',
-    flags:       overallResult.flags.join(','),
-    breakdown:   overallResult.breakdown,
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// ── KAM (key-account-manager): 4 блока (cognitive / disc / commercial /  ──
-// ── communication), без визуала. Когнитив — calcCognitiveCoS (бонусные   ──
-// ── вне процента). OD/CoS-функции НЕ трогаем — KAM живёт своими.          ──
-// ═══════════════════════════════════════════════════════════════════════
-
-/**
- * DISC KAM — та же теоретическая нормализация (-8..+16, 8 групп OD),
- * но целевые зоны включают I (D+I+C), а порядок доминант допускает
- * ведущего D ИЛИ I (order.alsoAcceptable). Проверка порядка — МЯГКАЯ.
- */
-export function calcDiscKAM(answers, targets, order) {
-  const raw = { D: 0, I: 0, S: 0, C: 0 }
-  const flags = []
-
-  answers.forEach(({ most, least, options, type }) => {
-    if (most  != null) raw[options[most].d]  += 2
-    if (least != null) raw[options[least].d] -= 1
-    if (type === 'trap' && most != null) {
-      const flag = options[most].flag
-      if (flag) flags.push(flag)
-    }
-  })
-
-  const minTheoretical = -8
-  const maxTheoretical = 16
-  const range = maxTheoretical - minTheoretical
-
-  const norm = {}
-  Object.keys(raw).forEach(k => {
-    norm[k] = Math.max(0, Math.min(100, Math.round(((raw[k] - minTheoretical) / range) * 100)))
-  })
-
-  const sorted    = Object.entries(raw).sort((a, b) => b[1] - a[1])
-  const primary   = sorted[0][0]
-  const secondary = sorted[1][0]
-
-  // Целевые зоны KAM: D, I, C (S — информативно, в зачёт зон не входит).
-  const inZone = k => norm[k] >= targets[k].min && norm[k] <= targets[k].max
-  const targetMatch = { D: inZone('D'), I: inZone('I'), C: inZone('C') }
-  const inTargetZone = targetMatch.D && targetMatch.I && targetMatch.C
-
-  // МЯГКАЯ проверка порядка: ведущий должен быть D или I (alsoAcceptable).
-  // C-ведущий (аналитик без драйва) или S-ведущий (пассивный) — флаг, не провал.
-  let dominantOrderOk = true
-  if (order && order.primary) {
-    const acceptable = [order.primary].concat(order.alsoAcceptable || [])
-    dominantOrderOk = acceptable.includes(primary)
-    if (!dominantOrderOk && order.demoteIfPrimary &&
-        order.demoteIfPrimary.includes(primary)) {
-      flags.push('disc_profile_shifted')
-    }
-  }
-
-  return {
-    d: raw.D, i: raw.I, s: raw.S, c: raw.C,
-    normD: norm.D, normI: norm.I, normS: norm.S, normC: norm.C,
-    primary, secondary,
-    flags, targetMatch, inTargetZone, dominantOrderOk,
-  }
-}
-
-/**
- * Overall KAM. 4 блока: cognitive / disc / commercial / communication.
- * Открытые блоки — эвристика по длине до AI (тот же estimateOpenAnswerPct).
- * DISC-вклад — попадание в зоны D+I+C с мягким штрафом за смещённый порядок.
- */
-export function calcOverallKAM({ cog, disc, commercialAnswers, communicationAnswers, role }) {
-  const { weights, ranks, gates } = role
-  const flags = [...disc.flags]
-
-  // === ГЕЙТЫ ===
-  let gated = false
-  let gateReason = null
-  if (cog.pct < gates.cog_min_pct) {
-    gated = true
-    gateReason = `cog_score < ${gates.cog_min_pct}% (получено ${cog.pct}%)`
-  }
-  if (!cog.timeOk) {
-    gated = true
-    gateReason = gateReason || 'Не уложился во время по когнитивному блоку'
-  }
-  // profit_over_volume / defensive_under_pressure (critical_red) — в AI-слое.
-
-  // === DISC-вклад: зоны D+I+C, мягкий штраф за смещённый порядок ===
-  const zoneHits =
-    (disc.targetMatch.D ? 1 : 0) +
-    (disc.targetMatch.I ? 1 : 0) +
-    (disc.targetMatch.C ? 1 : 0)
-  let discTargetScore = (zoneHits / 3) * 100
-  if (!disc.dominantOrderOk) discTargetScore = Math.round(discTargetScore * 0.75) // мягкий -25%
-
-  // === Открытые блоки — эвристика по длине до AI ===
-  const commercialPct    = commercialAnswers    ? estimateOpenAnswerPct(Object.values(commercialAnswers))    : 0
-  const communicationPct = communicationAnswers ? estimateOpenAnswerPct(Object.values(communicationAnswers)) : 0
-
-  const overall_pct = gated ? 0 : Math.round(
-    cog.pct          * weights.cognitive +
-    discTargetScore  * weights.disc +
-    commercialPct    * weights.commercial +
-    communicationPct * weights.communication
-  )
-
-  let rank = 'D'
-  if (gated) rank = 'D'
-  else if (overall_pct >= ranks.A) rank = 'A'
-  else if (overall_pct >= ranks.B) rank = 'B'
-  else if (overall_pct >= ranks.C) rank = 'C'
-
-  return {
-    overall_pct, rank,
-    gated, gateReason,
-    flags,
-    breakdown: {
-      cognitive: cog.pct,
-      disc: Math.round(discTargetScore),
-      commercial: commercialPct,
-      communication: communicationPct,
-    },
-  }
-}
-
-/**
- * Payload KAM для Google Sheets. Предметные колонки открытых блоков:
- * 3 коммерческих кейса + 2 коммуникационных. Сырой ответ первичен.
- * Ключи ответов — по id кейсов из questions/key-account-manager.js.
- */
-export function buildPayloadKAM({
-  name, role,
-  cogResult, discResult,
-  commercialAnswers, communicationAnswers,
-  overallResult,
-}) {
-  return {
-    candidate_name: name,
-    lang: 'ru',
-    role: role.sheetName,
-    consent: 'да',
-    consent_at: new Date().toISOString(),
-
-    // Когнитивный (основные в pct; бонусные отдельно)
-    cog_score:   cogResult.score,
-    cog_max:     cogResult.max,
-    cog_pct:     cogResult.pct,
-    cog_time_ok: cogResult.timeOk,
-    cog_bonus:   `${cogResult.bonusScore}/${cogResult.bonusMax}`,
-    raw_cog:     cogResult,
-
-    // DISC
-    disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
-    disc_normD: discResult.normD, disc_normI: discResult.normI,
-    disc_normS: discResult.normS, disc_normC: discResult.normC,
-    disc_primary: discResult.primary, disc_secondary: discResult.secondary,
-    disc_target_match: discResult.inTargetZone,
-    disc_flags: discResult.flags.join(','),
-
-    // Открытые блоки — предметные колонки, сырое первично
-    commercial_first_deal:   (commercialAnswers && commercialAnswers.b1_first_deal)        || '',
-    commercial_market_entry: (commercialAnswers && commercialAnswers.b3_market_entry)      || '',
-    commercial_priorities:   (commercialAnswers && commercialAnswers.c1_launch_priorities) || '',
-    comm_trust_barrier:      (communicationAnswers && communicationAnswers.k1_trust_barrier) || '',
-    comm_sla_breach:         (communicationAnswers && communicationAnswers.k2_sla_breach)    || '',
 
     // Итог
     overall_pct: overallResult.overall_pct,
