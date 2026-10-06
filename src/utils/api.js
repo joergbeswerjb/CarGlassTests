@@ -1,4 +1,4 @@
-// ─── API: Google Sheets через Apps Script (v9) ──────────────────────────────
+// ─── API: Google Sheets через Apps Script (v10) ─────────────────────────────
 // Apps Script возвращает: { ok: true, ... } при успехе или { error: '...' } при ошибке.
 // GET для чтения, POST с JSON body для записи, удаления и AI-генерации.
 const SHEETS_URL = import.meta.env.VITE_SHEETS_URL
@@ -112,4 +112,30 @@ export async function generateAnalysis(id, role) {
 export async function generateVisualEval(id, role) {
   const json = await postAction({ action: 'generate_visual_eval', id: id, role: role }, 'Generate visual eval failed')
   return json.visual || null
+}
+
+/**
+ * Оценить кейсы (Блок 4 — структурирование, Блок 5 — коммуникация) по рубрике.
+ * AI ставит met=true/false по каждому критерию, КОД считает балл (сумма весов) —
+ * длина ответа не влияет. На бэкенде (v20) этот же вызов СРАЗУ пересчитывает
+ * Итог%/Ранг по реальным баллам (struct/comm из AI, а не из длины).
+ *
+ * @returns {Promise<{cases: object, overall: object|null}>}
+ *   cases   — { struct_pct, struct_detail, comm_pct, comm_detail, red_flags, summary }
+ *   overall — { ok, overall_pct, rank, gated, gate_reason, breakdown } или { ok:false, ... }
+ */
+export async function generateCaseEval(id, role) {
+  const json = await postAction({ action: 'generate_case_eval', id: id, role: role }, 'Generate case eval failed')
+  return { cases: json.cases || null, overall: json.overall || null }
+}
+
+/**
+ * Пересчитать Итог%/Ранг БЕЗ повторной AI-оценки (для старых записей, где AI-оценка
+ * кейсов уже есть). Если кейсы ещё не оценены — вернёт { ok:false, needCases:true }.
+ *
+ * @returns {Promise<object>}  { ok, overall_pct, rank, gated, gate_reason, breakdown }
+ */
+export async function recomputeOverall(id, role) {
+  const json = await postAction({ action: 'recompute_overall', id: id, role: role }, 'Recompute failed')
+  return json.overall || null
 }
