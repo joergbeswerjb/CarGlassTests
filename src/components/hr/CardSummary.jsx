@@ -114,26 +114,38 @@ const cellValue = {
 
 export default function CardSummary({ row, cfg }) {
   const items = cfg.cardSummary || []
+  // Причина гейта / ограничения ранга — чтобы «D при 80%» не выглядело противоречием
+  const reason = String(row['Причина гейта'] || '').trim()
   return (
-    <div style={{
-      display: 'flex',
-      background: B.white,
-      border: '1px solid ' + B.border,
-      borderRadius: SHAPE.card,
-      overflow: 'hidden',
-      marginBottom: 28,
-      flexWrap: 'wrap',
-    }}>
-      {items.map(function (item, i) {
-        return (
-          <SummaryCell
-            key={item.key}
-            label={item.label}
-            value={row[item.key]}
-            format={item.format}
-          />
-        )
-      })}
+    <div style={{ marginBottom: 28 }}>
+      <div style={{
+        display: 'flex',
+        background: B.white,
+        border: '1px solid ' + B.border,
+        borderRadius: reason ? SHAPE.card + ' ' + SHAPE.card + ' 0 0' : SHAPE.card,
+        overflow: 'hidden',
+        flexWrap: 'wrap',
+      }}>
+        {items.map(function (item, i) {
+          return (
+            <SummaryCell
+              key={item.key}
+              label={item.label}
+              value={row[item.key]}
+              format={item.format}
+            />
+          )
+        })}
+      </div>
+      {reason && (
+        <div style={{
+          background: '#FFF6E5', border: '1px solid ' + B.border, borderTop: 'none',
+          borderRadius: '0 0 ' + SHAPE.card + ' ' + SHAPE.card,
+          padding: '10px 20px', fontSize: 13, color: '#7A4D0F', lineHeight: 1.5,
+        }}>
+          <strong>Почему такой ранг:</strong> {reason}
+        </div>
+      )}
     </div>
   )
 }

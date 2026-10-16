@@ -54,6 +54,11 @@ export default function BlockRoleBankSummary({ row }) {
   const bonus = parseIz(row['Бонус SCM'])
   const comps = parseComps(row['Банк по компетенциям'])
   const koColor = isNaN(ko) ? B.muted : (ko >= 2 ? '#9B1818' : (ko === 1 ? '#BA7517' : '#1A7A3C'))
+  // 1 → проверить; 2 → ранг не выше C, фокус интервью; 3+ → ранг D (решение 16.10)
+  const koHint = isNaN(ko) ? null
+    : ko >= 3 ? 'ранг D'
+    : ko === 2 ? 'ранг ≤ C · фокус интервью'
+    : ko === 1 ? 'проверить' : 'нет'
 
   return (
     <div>
@@ -68,7 +73,7 @@ export default function BlockRoleBankSummary({ row }) {
           title="Knockout"
           value={isNaN(ko) ? '—' : String(ko)}
           color={koColor}
-          hint={isNaN(ko) ? null : (ko >= 2 ? 'красный флаг' : (ko === 1 ? 'проверить' : 'нет'))}
+          hint={koHint}
         />
         <Stat
           title="Потенциал SCM"
