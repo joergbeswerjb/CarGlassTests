@@ -23,6 +23,9 @@ import BlockOpenFields from '../components/hr/BlockOpenFields.jsx'
 import BlockCognitiveTieredSummary from '../components/hr/BlockCognitiveTieredSummary.jsx'
 import BlockDiscBasicSummary from '../components/hr/BlockDiscBasicSummary.jsx'
 import AISections from '../components/hr/AISections.jsx'
+import BlockRoleBankSummary from '../components/hr/BlockRoleBankSummary.jsx'
+import BlockDiscTargetSummary from '../components/hr/BlockDiscTargetSummary.jsx'
+import BlockOrderPlanSummary from '../components/hr/BlockOrderPlanSummary.jsx'
 
 // Маппинг типа блока на компонент-рендерер
 const BLOCK_RENDERERS = {
@@ -37,6 +40,12 @@ const BLOCK_RENDERERS = {
   'prioritization':     BlockOpenFields,
   'commercial':           BlockOpenFields,
   'communication-cases':  BlockOpenFields,
+  // Логист-координатор
+  'role-bank':          BlockRoleBankSummary,
+  'disc-target':        BlockDiscTargetSummary,
+  'order-plan':         BlockOrderPlanSummary,
+  'case-discrepancy':   BlockOpenFields,
+  'case-defect':        BlockOpenFields,
   // Classic-блоки для техника - добавим позже когда понадобятся
   'cognitive':          null,
   'disc':               null,
@@ -59,6 +68,11 @@ const BLOCK_TITLES = {
   'prioritization':     { num: '4', title: 'Приоритизация' },
   'commercial':           { num: '3', title: 'Коммерческое суждение' },
   'communication-cases':  { num: '4', title: 'Коммуникация / переговоры' },
+  'role-bank':          { num: '2', title: 'Рабочие ситуации (ролевой банк)' },
+  'disc-target':        { num: '3', title: 'DISC — профиль и цель роли' },
+  'order-plan':         { num: '5.1', title: 'Кейс: план заказа' },
+  'case-discrepancy':   { num: '5.2', title: 'Кейс: расхождение инвентаризации' },
+  'case-defect':        { num: '5.3', title: 'Кейс: брак + письмо EN' },
 }
 
 // Превью первой строки сырого ответа (для свёрнутого заголовка)
@@ -137,6 +151,31 @@ function blockMeta(blockType, row) {
   if (blockType === 'communication-cases') {
     return truncate(row['Комм.: барьер доверия'], 38)
   }
+  if (blockType === 'role-bank') {
+    const sc = row['Банк']
+    const ko = row['Knockout']
+    const parts = []
+    if (sc) parts.push(String(sc))
+    if (ko !== undefined && ko !== null && ko !== '') parts.push('knockout: ' + ko)
+    return parts.join(' · ')
+  }
+  if (blockType === 'disc-target') {
+    const osn = row['DISC осн.']
+    const zones = row['DISC зоны']
+    if (!osn) return ''
+    return 'осн. ' + osn + (zones ? ' · зоны ' + zones : '')
+  }
+  if (blockType === 'order-plan') {
+    const sc = row['План заказа']
+    return sc ? String(sc) : ''
+  }
+  if (blockType === 'case-discrepancy') {
+    return truncate(row['Кейс: расхождение'], 38)
+  }
+  if (blockType === 'case-defect') {
+    const en = row['EN уровень']
+    return (en ? 'EN: ' + en + ' · ' : '') + truncate(row['Кейс: брак RU'], 30)
+  }
   return ''
 }
 
@@ -205,7 +244,19 @@ function CriteriaList({ title, pct, detail }) {
   )
 }
 
-function CaseEvalPanel({ id, role, onDone }) {
+// Конфиг панели по умолчанию — OD (Блок 4 / Блок 5). Роль может задать свой
+// в hr-config (cfg.caseEval): заголовок, секции рубрики, пояснение к Итогу.
+const DEFAULT_CASE_EVAL = {
+  title: 'Оценка кейсов (AI) — Блок 4 / Блок 5',
+  sections: [
+    { title: 'Структурирование (Блок 4)', pctKey: 'struct_pct', detailKey: 'struct_detail' },
+    { title: 'Коммуникация (Блок 5)',     pctKey: 'comm_pct',   detailKey: 'comm_detail'   },
+  ],
+  overallNote: 'Пересчитано по реальным баллам: когнитивный, DISC, визуал, структурирование и коммуникация.',
+}
+
+function CaseEvalPanel({ id, role, onDone, evalCfg }) {
+  const ce = evalCfg || DEFAULT_CASE_EVAL
   const [state, setState] = useState('idle')   // idle | loading | done | error
   const [cases, setCases] = useState(null)
   const [overall, setOverall] = useState(null)
@@ -242,7 +293,7 @@ function CaseEvalPanel({ id, role, onDone }) {
       }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: B.text }}>
-            Оценка кейсов (AI) — Блок 4 / Блок 5
+            {ce.title}
           </div>
           <div style={{ fontSize: 12, color: B.muted, marginTop: 3, lineHeight: 1.5 }}>
             AI отмечает критерии рубрики, балл считает код — по смыслу, не по длине.
@@ -311,7 +362,7 @@ function CaseEvalPanel({ id, role, onDone }) {
                 <div style={{ fontSize: 22, fontWeight: 700, color: B.text }}>{overall.rank}</div>
               </div>
               <div style={{ fontSize: 12, color: B.muted, flex: 1, minWidth: 180, lineHeight: 1.5 }}>
-                Пересчитано по реальным баллам: когнитивный, DISC, визуал, структурирование и коммуникация.
+                {ce.overallNote}
                 {overall.gated ? ' Гейт сработал (нокаут).' : ' Гейт-режим: флаг — профиль не обнулён.'}
               </div>
             </div>
@@ -347,10 +398,25 @@ function CaseEvalPanel({ id, role, onDone }) {
           {/* Разбор по рубрике */}
           {cases && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-              <CriteriaList title="Структурирование (Блок 4)" pct={cases.struct_pct} detail={cases.struct_detail} />
-              <CriteriaList title="Коммуникация (Блок 5)" pct={cases.comm_pct} detail={cases.comm_detail} />
+              {ce.sections.map(function (sec) {
+                return (
+                  <CriteriaList
+                    key={sec.pctKey}
+                    title={sec.title}
+                    pct={cases[sec.pctKey]}
+                    detail={cases[sec.detailKey]}
+                  />
+                )
+              })}
             </div>
           )}
+
+          {cases && cases.en_level ? (
+            <div style={{ marginTop: 10, fontSize: 13, color: B.text }}>
+              Уровень английского (письмо): <strong>{cases.en_level}</strong>
+              {cases.en_comment ? <span style={{ color: B.muted }}> — {cases.en_comment}</span> : null}
+            </div>
+          ) : null}
 
           {cases && cases.summary ? (
             <div style={{ marginTop: 10, fontSize: 12.5, color: B.muted, fontStyle: 'italic', lineHeight: 1.5 }}>
@@ -550,7 +616,7 @@ export default function CandidateCardPage() {
   const blocks = cfg.cardBlocks || []
   const aiSections = cfg.aiSections || []
   // Панель оценки кейсов — только для ролей с открытыми блоками структ./комм.
-  const hasCaseBlocks = blocks.indexOf('structuring') >= 0 || blocks.indexOf('communication') >= 0
+  const hasCaseBlocks = !!cfg.caseEval || blocks.indexOf('structuring') >= 0 || blocks.indexOf('communication') >= 0
 
   return (
     <div style={{ background: B.light, minHeight: '100vh' }}>
@@ -589,6 +655,7 @@ export default function CandidateCardPage() {
           <CaseEvalPanel
             id={id}
             role={cfg.sheetName}
+            evalCfg={cfg.caseEval}
             onDone={function () { load(false) }}
           />
         )}
@@ -613,8 +680,12 @@ export default function CandidateCardPage() {
         {/* Секции блоков — свёрнуты в Collapsible */}
         {blocks.map(function (blockType) {
           const Renderer = BLOCK_RENDERERS[blockType]
-          const titleInfo = BLOCK_TITLES[blockType] || { num: '?', title: blockType }
-          const isPreview = blockType === 'structuring' || blockType === 'communication' || blockType === 'case-study' || blockType === 'prioritization' || blockType === 'commercial' || blockType === 'communication-cases'
+          const baseTitle = BLOCK_TITLES[blockType] || { num: '?', title: blockType }
+          // Роль может переопределить номера блоков (cfg.blockNumbers)
+          const titleInfo = (cfg.blockNumbers && cfg.blockNumbers[blockType])
+            ? { num: cfg.blockNumbers[blockType], title: baseTitle.title }
+            : baseTitle
+          const isPreview = blockType === 'structuring' || blockType === 'communication' || blockType === 'case-study' || blockType === 'prioritization' || blockType === 'commercial' || blockType === 'communication-cases' || blockType === 'case-discrepancy'
           return (
             <Collapsible
               key={blockType}

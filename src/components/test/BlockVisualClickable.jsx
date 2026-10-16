@@ -11,7 +11,7 @@ import BrandedButton from '../BrandedButton.jsx'
 const MAX_MARKS_PER_SCENE  = 10
 const MIN_EXPLANATION_CHARS = 20
 
-export default function BlockVisualClickable({ scenes, savedAnswers, onComplete }) {
+export default function BlockVisualClickable({ scenes, savedAnswers, onComplete, blockLabel }) {
   const [sceneIdx, setSceneIdx]           = useState(0)
   const [marks, setMarks]                 = useState(savedAnswers || scenes.map(() => []))
   const [activeMarkIdx, setActiveMarkIdx] = useState(null)
@@ -107,7 +107,7 @@ export default function BlockVisualClickable({ scenes, savedAnswers, onComplete 
     <div style={{ padding: '1rem', maxWidth: 760, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>
-          Блок 3 из 5 · Сцена {sceneIdx + 1} из {scenes.length}
+          {blockLabel || 'Блок 3 из 5'} · Сцена {sceneIdx + 1} из {scenes.length}
         </p>
         <p style={{ fontSize: 13, color: limitReached ? B.amber : B.muted, margin: 0 }}>
           {currentMarks.length} / {MAX_MARKS_PER_SCENE} отметок

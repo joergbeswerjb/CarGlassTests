@@ -3,6 +3,7 @@
 //   - classic  (technик): 3 блока, билингвальный RU/KZ
 //   - extended (OD): 5 блоков, только русский
 //   - basic    (офисные позиции): 2 блока, только русский, с выбором вакансии
+//   - logist   (логист-координатор): 5 блоков, только русский, одно поле EN
 // Брендинг GlassGo: светлая страница, синий primary, асимметричная плашка.
 // Согласие на обработку данных - обязательная галочка, без неё тест не стартует.
 
@@ -18,6 +19,14 @@ const T = {
     sub_basic:    'Когнитивный потенциал · Личностный профиль DISC',
     sub_cos:      'Когнитивный · DISC · Кейс-аналитика · Приоритизация',
     sub_kam:      'Когнитивный · DISC · Коммерческое суждение · Коммуникация',
+    sub_logist:   'Когнитивный · Рабочие ситуации · DISC · Визуальный · Кейс',
+    b_bank:   'Рабочие\nситуации',
+    b_scene:  'Визуальный\nстандарт (сцена)',
+    b_case_logist: 'Кейс: запас,\nучёт, брак + EN',
+    time_logist_val: '≈ 95 мин',
+    timer_logist_val: '20 мин + 15 мин',
+    timer_logist: 'Таймер Блоки 1–2',
+    rules_logist: 'Отвечайте самостоятельно, без посторонней помощи и без ИИ-сервисов. Блоки 1 и 2 проходят строго по таймеру (20 и 15 минут); можно пользоваться калькулятором. Тест проходите с компьютера или планшета. В Блоке 3 (личностный профиль) нет правильных и неправильных ответов — отвечайте как есть. В Блоке 4 отметьте на фото всё, что считаете нарушением, и опишите словами. В Блоке 5 ответы оцениваются по существу — пишите конкретно; одно поле — на английском языке. Вернуться к уже пройденному блоку нельзя. Прогресс сохраняется автоматически. Ответы, похожие на сгенерированные ИИ, помечаются и являются основанием для отказа, а все ответы разбираются на собеседовании.',
     b_cog:    'Когнитивный\nблок',
     b_disc:   'Личностный\nпрофиль DISC',
     b_vis:    'Визуальный\nстандарт',
@@ -139,6 +148,8 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
     if (blockKey === 'commercial') return (q.COMMERCIAL_CASES || []).length
     if (blockKey === 'communication') return (q.COMMUNICATION_CASES || []).length
     if (blockKey === 'case') return (q.CASE_STUDY && q.CASE_STUDY.fields) ? q.CASE_STUDY.fields.length : 0
+    if (blockKey === 'bank') return (q.ROLE_BANK || []).length
+    if (blockKey === 'case_logist') return [q.ORDER_PLAN, q.CASE_DISCREPANCY, q.CASE_DEFECT].filter(Boolean).length
     if (blockKey === 'prioritization') return (q.PRIORITIZATION_CASE && q.PRIORITIZATION_CASE.fields) ? q.PRIORITIZATION_CASE.fields.length : 0
     return 0
   }
@@ -159,6 +170,14 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
 
   const blocks = testType === 'basic'
     ? blocksBasic
+    : testType === 'logist'
+    ? [
+        { n: getQuestionCount('cognitive'),   l: t.b_cog          },
+        { n: getQuestionCount('bank'),        l: t.b_bank         },
+        { n: getQuestionCount('disc'),        l: t.b_disc         },
+        { n: getQuestionCount('visual'),      l: t.b_scene        },
+        { n: getQuestionCount('case_logist'), l: t.b_case_logist  },
+      ]
     : testType === 'kam'
     ? [
         { n: getQuestionCount('cognitive'),     l: t.b_cog   },
@@ -188,24 +207,30 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
       ]
 
   const sub = testType === 'basic' ? t.sub_basic
+    : testType === 'logist' ? t.sub_logist
     : testType === 'kam' ? t.sub_kam
     : testType === 'cos' ? t.sub_cos
     : testType === 'extended' ? t.sub_extended : t.sub_classic
   const timeVal = testType === 'basic' ? t.time_basic_val
+    : testType === 'logist' ? t.time_logist_val
     : testType === 'kam' ? t.time_kam_val
     : testType === 'cos' ? t.time_cos_val
     : testType === 'extended' ? t.time_extended_val : t.time_classic_val
   const timerVal = testType === 'basic' ? t.timer_basic_val
+    : testType === 'logist' ? t.timer_logist_val
     : testType === 'kam' ? t.timer_kam_val
     : testType === 'cos' ? t.timer_cos_val
     : testType === 'extended' ? t.timer_extended_val : t.timer_classic_val
   const rules = testType === 'basic' ? t.rules_basic
+    : testType === 'logist' ? t.rules_logist
     : testType === 'kam' ? t.rules_kam
     : testType === 'cos' ? t.rules_cos
     : testType === 'extended' ? t.rules_extended : t.rules_classic
 
   const gridCols = 'repeat(' + blocks.length + ', 1fr)'
-  const timeCols = (testType === 'extended' || testType === 'cos' || testType === 'kam') ? 'repeat(2,1fr)' : 'repeat(3,1fr)'
+  // Раскладка «без подзаголовка и без карточки порога» — у многоблочных ролей
+  const wideLayout = testType === 'extended' || testType === 'cos' || testType === 'kam' || testType === 'logist'
+  const timeCols = wideLayout ? 'repeat(2,1fr)' : 'repeat(3,1fr)'
 
   let thresholdText = '-'
   const cogCfg = role.questions && role.questions.COGNITIVE_CONFIG
@@ -257,7 +282,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
         </span>
       </div>
 
-      {(testType !== 'extended' && testType !== 'cos' && testType !== 'kam') && (
+      {!wideLayout && (
         <p style={{
           fontSize: 14, color: B.muted, lineHeight: 1.6,
           marginBottom: 32, marginTop: 0,
@@ -271,7 +296,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
         gridTemplateColumns: gridCols,
         gap: 10,
         marginBottom: 24,
-        marginTop: (testType === 'extended' || testType === 'cos' || testType === 'kam') ? 28 : 0,
+        marginTop: wideLayout ? 28 : 0,
       }}>
         {blocks.map(function (item, i) {
           return (
@@ -311,7 +336,7 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
             fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em',
             color: B.muted, marginBottom: 4,
           }}>
-            {(testType === 'extended' || testType === 'cos' || testType === 'kam') ? t.time_extended : t.time_classic}
+            {wideLayout ? t.time_extended : t.time_classic}
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>{timeVal}</div>
         </div>
@@ -324,10 +349,10 @@ export default function BlockIntro({ role, lang, name, onNameChange, vacancy, on
           <div style={{
             fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em',
             color: B.muted, marginBottom: 4,
-          }}>{t.timer}</div>
+          }}>{testType === 'logist' ? t.timer_logist : t.timer}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: B.text }}>{timerVal}</div>
         </div>
-        {(testType !== 'extended' && testType !== 'cos' && testType !== 'kam') && (
+        {!wideLayout && (
           <div style={{
             background: B.white, border: '1px solid ' + B.border,
             borderLeft: '3px solid ' + B.primary,

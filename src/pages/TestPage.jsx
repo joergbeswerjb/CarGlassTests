@@ -3,6 +3,7 @@
 //   - 'classic'  : intro → cognitive → disc → visual → done (техник)
 //   - 'extended' : access_code → intro → cognitive → disc → visual_clickable → structuring → communication → done (OD)
 //   - 'basic'    : intro → cognitive (тиры) → disc (описательный) → done (офисные позиции)
+//   - 'logist'   : intro → cognitive (тиры) → bank → disc → visual → plan → discrepancy → defect → done
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -15,6 +16,7 @@ import {
   calcCognitiveTiered, calcDiscBasic, buildPayloadBasic,
   calcCognitiveCoS, calcDiscCoS, calcOverallCoS, buildPayloadCoS,
   calcDiscKAM, calcOverallKAM, buildPayloadKAM,
+  calcBankLogist, calcDiscLogist, calcOrderPlanLogist, calcOverallLogist, buildPayloadLogist,
 } from '../utils/scoring.js'
 import { useAutosave, loadAutosave, clearAutosave } from '../utils/useAutosave.js'
 
@@ -35,6 +37,10 @@ import BlockCommunication    from '../components/test/BlockCommunication.jsx'
 // Базовые блоки (офисные позиции)
 import BlockCognitiveTiered  from '../components/test/BlockCognitiveTiered.jsx'
 
+// Блоки логиста
+import BlockSituational      from '../components/test/BlockSituational.jsx'
+import BlockOrderPlan        from '../components/test/BlockOrderPlan.jsx'
+
 // Конфигурация шагов по типу теста
 const STEPS_BY_TYPE = {
   classic:  ['intro', 'cognitive', 'disc', 'visual', 'submitting'],
@@ -42,6 +48,7 @@ const STEPS_BY_TYPE = {
   basic:    ['intro', 'cognitive', 'disc', 'submitting'],
   cos:      ['access', 'intro', 'cognitive', 'disc', 'case', 'prioritization', 'submitting'],
   kam:      ['intro', 'cognitive', 'disc', 'briefing', 'commercial', 'communication', 'submitting'],
+  logist:   ['intro', 'cognitive', 'bank', 'disc', 'visual', 'plan', 'discrepancy', 'defect', 'submitting'],
 }
 
 export default function TestPage() {
@@ -132,6 +139,24 @@ export default function TestPage() {
           cogResult, discResult,
           caseAnswers: finalAnswers.case,
           prioAnswers: finalAnswers.prioritization,
+          overallResult: overall,
+        })
+      } else if (testType === 'logist') {
+        // Логист: cognitive (тиры) → bank → disc → visual → plan → discrepancy → defect
+        const q = role.questions
+        const cogResult  = calcCognitiveTiered(finalAnswers.cognitive, q.COGNITIVE_CONFIG)
+        const bankResult = calcBankLogist(finalAnswers.bank, q.ROLE_BANK, q.BANK_COMPETENCIES)
+        const discResult = calcDiscLogist(finalAnswers.disc || [], q.DISC_CONFIG, role.discTargets, role.discOrder)
+        const visResult  = calcVisualOD(finalAnswers.visual || [], q.VISUAL_SCENES)
+        const planResult = calcOrderPlanLogist(finalAnswers.plan, q.ORDER_PLAN)
+        const overall    = calcOverallLogist({
+          cog: cogResult, bank: bankResult, disc: discResult, plan: planResult, role,
+        })
+        payload = buildPayloadLogist({
+          name, role,
+          cogResult, bankResult, discResult, visResult, planResult,
+          discrepancyAnswers: finalAnswers.discrepancy,
+          defectAnswers: finalAnswers.defect,
           overallResult: overall,
         })
       } else if (testType === 'kam') {
@@ -417,6 +442,64 @@ export default function TestPage() {
             onComplete={a => {
               recordAnswer('prioritization', a)
               handleSubmit({ ...answers, prioritization: a })
+            }}
+          />
+        )}
+
+        {/* ── Логист: cognitive → bank → disc → visual → plan → discrepancy → defect ── */}
+        {step === 'cognitive' && testType === 'logist' && (
+          <BlockCognitiveTiered
+            bank={role.questions.COGNITIVE_BANK}
+            config={role.questions.COGNITIVE_CONFIG}
+            savedState={answers.cognitive}
+            onComplete={a => { recordAnswer('cognitive', a); setStep('bank') }}
+          />
+        )}
+        {step === 'bank' && testType === 'logist' && (
+          <BlockSituational
+            bank={role.questions.ROLE_BANK}
+            config={role.questions.BANK_CONFIG}
+            savedState={answers.bank}
+            onComplete={a => { recordAnswer('bank', a); setStep('disc') }}
+          />
+        )}
+        {step === 'disc' && testType === 'logist' && (
+          <BlockDiscOD
+            questions={role.questions.DISC}
+            savedState={answers.disc}
+            blockLabel={role.questions.DISC_CONFIG.blockLabel}
+            onComplete={a => { recordAnswer('disc', a); setStep('visual') }}
+          />
+        )}
+        {step === 'visual' && testType === 'logist' && (
+          <BlockVisualClickable
+            scenes={role.questions.VISUAL_SCENES}
+            savedAnswers={answers.visual}
+            blockLabel="Блок 4 из 5"
+            onComplete={a => { recordAnswer('visual', a); setStep('plan') }}
+          />
+        )}
+        {step === 'plan' && testType === 'logist' && (
+          <BlockOrderPlan
+            plan={role.questions.ORDER_PLAN}
+            savedAnswers={answers.plan}
+            onComplete={a => { recordAnswer('plan', a); setStep('discrepancy') }}
+          />
+        )}
+        {step === 'discrepancy' && testType === 'logist' && (
+          <BlockStructured
+            caseData={role.questions.CASE_DISCREPANCY}
+            savedAnswers={answers.discrepancy}
+            onComplete={a => { recordAnswer('discrepancy', a); setStep('defect') }}
+          />
+        )}
+        {step === 'defect' && testType === 'logist' && (
+          <BlockStructured
+            caseData={role.questions.CASE_DEFECT}
+            savedAnswers={answers.defect}
+            onComplete={a => {
+              recordAnswer('defect', a)
+              handleSubmit({ ...answers, defect: a })
             }}
           />
         )}

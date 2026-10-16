@@ -15,6 +15,14 @@ const FLAGS_ROLES = {
   'Операционный директор': true,
   'Помощник ГД / Chief of Staff': true,
   'Менеджер по ключевым клиентам (B2B)': true,
+  'Логист-координатор филиала': true,
+}
+
+// Роли, у которых флаги опираются на AI-оценку кейса (уровень EN, красные
+// сигналы кейса): автозапуск только когда эта колонка уже заполнена.
+// Иначе флаги генерируются до оценки и пишут «уровень не выставлен».
+const FLAGS_AFTER_COLUMN = {
+  'Логист-координатор филиала': 'AI оценка кейса',
 }
 
 // Цвета и подпись по уровню флага.
@@ -137,13 +145,18 @@ export default function AIFlags({ row }) {
       })
   }
 
+  const waitCol = FLAGS_AFTER_COLUMN[role]
+  const waitVal = waitCol ? String(row[waitCol] || '') : ''
+  const ready = !waitCol || (waitVal !== '' && waitVal !== 'PENDING')
+
   useEffect(function () {
     if (!FLAGS_ROLES[role]) return
     const stored = parseStored(row['AI флаги'])
     if (stored) { setFlags(stored); return }
+    if (!ready) return
     run()
     // eslint-disable-next-line
-  }, [id])
+  }, [id, ready])
 
   if (!FLAGS_ROLES[role]) {
     return (
@@ -191,11 +204,35 @@ export default function AIFlags({ row }) {
     )
   }
 
+  const regenBtn = (label) => (
+    <button
+      onClick={run}
+      style={{
+        marginTop: 4, padding: '6px 12px', background: 'transparent', color: B.muted,
+        border: '1px solid ' + B.border, borderRadius: SHAPE.input,
+        fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+      }}
+    >
+      {label}
+    </button>
+  )
+
   if (!flags || flags.length === 0) {
+    if (!ready) {
+      return (
+        <div>
+          <p style={{ fontSize: 13, color: B.muted, margin: '0 0 10px', lineHeight: 1.5 }}>
+            Флаги строятся после AI-оценки кейса: нажмите «Оценить кейсы (AI)» вверху карточки — флаги сгенерируются автоматически.
+          </p>
+          {regenBtn('Сгенерировать сейчас (без оценки кейса)')}
+        </div>
+      )
+    }
     return (
-      <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>
-        Флагов нет.
-      </p>
+      <div>
+        <p style={{ fontSize: 13, color: B.muted, margin: '0 0 10px' }}>Флагов нет.</p>
+        {regenBtn('Сгенерировать флаги')}
+      </div>
     )
   }
 
@@ -204,6 +241,7 @@ export default function AIFlags({ row }) {
       {flags.map(function (flag, i) {
         return <FlagCard key={i} flag={flag} />
       })}
+      {regenBtn('Перегенерировать флаги')}
     </div>
   )
 }
