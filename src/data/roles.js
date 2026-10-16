@@ -10,6 +10,7 @@ import operationsDirectorContent  from './questions/operations-director.js'
 import officeUniversalContent     from './questions/office-universal.js'
 import chiefOfStaffContent        from './questions/chief-of-staff.js'
 import keyAccountManagerContent   from './questions/key-account-manager.js'
+import logistCoordinatorContent   from './questions/logist-coordinator.js'
 
 export const ROLES = {
   // ── Техник филиала (без изменений) ──
@@ -100,6 +101,25 @@ export const ROLES = {
     vacancies:  officeUniversalContent.VACANCIES,
     // Композитного балла и рангов нет намеренно: DISC описательный.
     // Единственный гейт — базовый тир когнитивки, он в COGNITIVE_CONFIG.gate.
+  },
+
+  // ── Логист-координатор филиала (склад + материальный поток, рост до SCM) ──
+  'logist-coordinator': {
+    slug:       'logist-coordinator',
+    sheetName:  'Логист-координатор филиала',
+    label:      { ru: 'Логист-координатор филиала', kz: 'Логист-координатор филиала' },
+    questions:  logistCoordinatorContent,
+    // Языковая политика: только русский + одно поле EN (уверенный B1)
+    languages:  ['ru'],
+    // 5 блоков: cognitive (тиры) → bank → disc → visual → кейс (план / расхождение / брак+EN)
+    testType:   'logist',
+    accessCode: null,      // вход через StartPage / прямую ссылку на slug
+    // Целевые зоны DISC (C-ведущий) и порядок доминант — из контент-файла
+    discTargets: logistCoordinatorContent.DISC_TARGETS,
+    discOrder:   logistCoordinatorContent.DISC_DOMINANT_ORDER,
+    ranks:       logistCoordinatorContent.SCORE_RANKS,
+    weights:     logistCoordinatorContent.SCORE_WEIGHTS,
+    gates:       logistCoordinatorContent.SCORE_GATES,
   },
 }
 

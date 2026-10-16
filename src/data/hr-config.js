@@ -172,10 +172,82 @@ export const HR_CONFIG = {
     },
   },
 
+  'logist-coordinator': {
+    slug: 'logist-coordinator',
+    sheetName: 'Логист-координатор филиала',
+    label: 'Логист-координатор филиала',
+    listColumns: [
+      { key: 'Имя',          label: 'Имя',      width: '20%'                          },
+      { key: 'Дата',         label: 'Дата',     width: '12%', format: 'date'          },
+      { key: 'Ког. уровень', label: 'Уровень',  width: '10%'                          },
+      { key: 'Knockout',     label: 'KO',       width: '7%'                           },
+      { key: 'DISC осн.',    label: 'DISC',     width: '8%'                           },
+      { key: 'Итог %',       label: 'Итог',     width: '8%',  format: 'pct'           },
+      { key: 'Ранг',         label: 'Ранг',     width: '8%',  format: 'rank-badge'    },
+      { key: 'Гейт',         label: 'Гейт',     width: '12%', format: 'gate-status'   },
+    ],
+    cardSummary: [
+      { key: 'Итог %',       label: 'Итог',     format: 'pct'           },
+      { key: 'Ранг',         label: 'Ранг',     format: 'rank-badge'    },
+      { key: 'DISC осн.',    label: 'DISC'                              },
+      { key: 'Knockout',     label: 'Knockout'                          },
+      { key: 'EN уровень',   label: 'EN'                                },
+      { key: 'Гейт',         label: 'Гейт',     format: 'gate-status'   },
+    ],
+    cardBlocks: [
+      'cognitive-tiered',
+      'role-bank',
+      'disc-target',
+      'visual-extended',
+      'order-plan',
+      'case-discrepancy',
+      'case-defect',
+    ],
+    // Конвейер роли: флаги → CV → сценарий интервью. БЕЗ ответов интервью
+    // и БЕЗ финального досье — оценка после интервью идёт вне портала.
+    aiSections: ['flags', 'cv', 'interview-script'],
+    scriptAnswers: false,
+    scriptWarmups: [
+      'Коротко — что вам интересно в этой работе и почему сейчас? (~2 мин)',
+      'Первые год-два это склад, приёмка, доставка на фургоне — много работы руками. Как вы к этому относитесь? (~2 мин)',
+    ],
+    // Номера блоков в карточке (кейс — три части Блока 5)
+    blockNumbers: {
+      'cognitive-tiered': '1', 'role-bank': '2', 'disc-target': '3', 'visual-extended': '4',
+      'order-plan': '5.1', 'case-discrepancy': '5.2', 'case-defect': '5.3',
+    },
+    // Панель «Оценить кейсы (AI)»: какие части оценивает рубрика и где лежит JSON
+    caseEval: {
+      title: 'Оценка кейса (AI) — части 2 и 3 + комментарий к плану',
+      evalColumn: 'AI оценка кейса',
+      sections: [
+        { title: 'Ч.2 Расхождение',     pctKey: 'discrepancy_pct', detailKey: 'discrepancy_detail' },
+        { title: 'Ч.3 Действия (RU)',   pctKey: 'defect_ru_pct',   detailKey: 'defect_ru_detail'   },
+        { title: 'Ч.3 Письмо (EN)',     pctKey: 'defect_en_pct',   detailKey: 'defect_en_detail'   },
+      ],
+      overallNote: 'Пересчитано по реальным баллам: когнитивный, ролевой банк, DISC, визуал (если оценён) и кейс.',
+    },
+    openBlocks: {
+      'case-discrepancy': {
+        title: 'Кейс ч.2 — расхождение инвентаризации',
+        fields: [
+          { key: 'Кейс: расхождение', label: 'Причины, исправление учёта, правило против повторения' },
+        ],
+      },
+      'case-defect': {
+        title: 'Кейс ч.3 — брак при приёмке + письмо поставщику',
+        fields: [
+          { key: 'Кейс: брак RU',   label: 'Действия по шагам (RU)'  },
+          { key: 'Кейс: письмо EN', label: 'Ответ поставщику (EN)'   },
+        ],
+      },
+    },
+  },
+
   // Будущие роли добавлять по образцу:
   // 'cfo':    { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
   // 'gm':     { slug, sheetName, label, listColumns, cardSummary, cardBlocks, aiSections }
 }
 
 // Порядок отображения ролей в переключателе HR-панели
-export const HR_ROLES_ORDER = ['operations-director', 'chief-of-staff', 'key-account-manager', 'office-universal', 'technician']
+export const HR_ROLES_ORDER = ['operations-director', 'chief-of-staff', 'key-account-manager', 'logist-coordinator', 'office-universal', 'technician']
