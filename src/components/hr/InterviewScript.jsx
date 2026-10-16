@@ -61,7 +61,7 @@ function TemplateBlock({ label, children }) {
   )
 }
 
-function QuestionCard({ q, index, answer, onAnswerChange }) {
+function QuestionCard({ q, index, answer, onAnswerChange, showAnswer }) {
   function handleChange(e) {
     onAnswerChange(index, e.target.value)
   }
@@ -85,24 +85,29 @@ function QuestionCard({ q, index, answer, onAnswerChange }) {
           <span style={{ fontWeight: 600 }}>Тревожный: </span>{q.concern_signal}
         </div>
       </div>
-      <textarea
-        value={answer}
-        onChange={handleChange}
-        placeholder="Ответ кандидата с интервью..."
-        rows={3}
-        style={{
-          width: '100%', boxSizing: 'border-box',
-          fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5,
-          color: B.text, background: B.light,
-          border: '1px solid ' + B.border, borderRadius: SHAPE.input,
-          padding: '8px 10px', resize: 'vertical',
-        }}
-      />
+      {showAnswer && (
+        <textarea
+          value={answer}
+          onChange={handleChange}
+          placeholder="Ответ кандидата с интервью..."
+          rows={3}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5,
+            color: B.text, background: B.light,
+            border: '1px solid ' + B.border, borderRadius: SHAPE.input,
+            padding: '8px 10px', resize: 'vertical',
+          }}
+        />
+      )}
     </div>
   )
 }
 
-export default function InterviewScript({ row }) {
+// showAnswers=false — сценарий как рекомендации к интервью, без полей ответов
+// и без сохранения (роли без финального досье). warmups — вводные вопросы роли.
+export default function InterviewScript({ row, showAnswers = true, warmups }) {
+  const introWarmups = Array.isArray(warmups) && warmups.length ? warmups : INTRO_WARMUPS
   const id = row['ID']
   const role = row['Роль']
   const initialScript = parseStored(row['Сценарий интервью'])
@@ -206,7 +211,7 @@ export default function InterviewScript({ row }) {
       <TemplateBlock label="Вводная (стандартная)">
         <p style={{ fontSize: 14, color: B.text, lineHeight: 1.6, margin: '0 0 10px' }}>{INTRO_FRAMING}</p>
         <div style={{ fontSize: 13, color: B.text, lineHeight: 1.7 }}>
-          {INTRO_WARMUPS.map(function (w, i) {
+          {introWarmups.map(function (w, i) {
             return <div key={i}>- {w}</div>
           })}
         </div>
@@ -224,10 +229,12 @@ export default function InterviewScript({ row }) {
             index={i}
             answer={answers[i] || ''}
             onAnswerChange={handleAnswerChange}
+            showAnswer={showAnswers}
           />
         )
       })}
 
+      {showAnswers && (
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0 16px' }}>
         <button
           onClick={handleSaveAnswers}
@@ -246,6 +253,7 @@ export default function InterviewScript({ row }) {
         {answersSaved && <span style={{ fontSize: 13, color: B.green }}>Ответы сохранены</span>}
         {answersError && <span style={{ fontSize: 13, color: B.red }}>Ошибка: {answersError}</span>}
       </div>
+      )}
 
       <TemplateBlock label="Закрытие (стандартное)">
         <div style={{ fontSize: 14, color: B.text, lineHeight: 1.7 }}>

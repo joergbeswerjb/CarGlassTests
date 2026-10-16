@@ -28,6 +28,8 @@ const TRAP_LABELS = {
   ambition_fit:        'Соответствие амбиций',
   cash_attitude:       'Отношение к наличным',
   loyalty_friend:      'Лояльность против дружбы',
+  disc_profile_shifted:'Профиль смещён от идеала роли',
+  disc_traps_mismatch: 'Расхождение в ловушках-зеркалах',
 }
 
 const KIND_STYLE = {
