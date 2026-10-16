@@ -904,3 +904,290 @@ export function buildPayloadKAM({
     breakdown:   overallResult.breakdown,
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── LOGIST (logist-coordinator): 5 блоков — когнитивный по тирам /       ──
+// ── ролевой банк / DISC оценочный / визуал / кейс из трёх частей.        ──
+// ── Функции других ролей НЕ трогаем — логист живёт своими.               ──
+// ═══════════════════════════════════════════════════════════════════════
+
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+
+/**
+ * Ролевой банк логиста. Бонусные вопросы (q.bonus) — вне процента.
+ * Knockout — выбор варианта из q.ko (индексы исходных вариантов).
+ * Неотвеченный вопрос (кончилось время) = 0 баллов, в знаменателе остаётся.
+ */
+export function calcBankLogist(result, bank, competencies) {
+  const answers = (result && result.answers) || []
+  const byId = {}
+  answers.forEach(function (a) { byId[a.questionId] = a })
+
+  const mainQs  = bank.filter(function (q) { return !q.bonus })
+  const bonusQs = bank.filter(function (q) { return  q.bonus })
+
+  let score = 0
+  const byComp = {}
+  Object.keys(competencies || {}).forEach(function (k) { byComp[k] = { score: 0, max: 0, label: competencies[k] } })
+  const knockouts = []
+
+  mainQs.forEach(function (q) {
+    if (!byComp[q.comp]) byComp[q.comp] = { score: 0, max: 0, label: q.comp }
+    byComp[q.comp].max += 1
+    const a = byId[q.id]
+    if (!a) return
+    if (a.isCorrect) { score += 1; byComp[q.comp].score += 1 }
+    if ((q.ko || []).indexOf(a.selected) >= 0) {
+      knockouts.push({
+        id: q.id,
+        option: LETTERS[a.selected] || String(a.selected),
+        text: q.o[a.selected],
+      })
+    }
+  })
+
+  const bonusScore = bonusQs.filter(function (q) { return byId[q.id] && byId[q.id].isCorrect }).length
+
+  const max = mainQs.length
+  return {
+    score: score,
+    max: max,
+    pct: max > 0 ? Math.round((score / max) * 100) : 0,
+    byComp: byComp,
+    knockouts: knockouts,
+    bonusScore: bonusScore,
+    bonusMax: bonusQs.length,
+    timeOk: !result || result.timeOk !== false,
+    timeSec: (result && result.totalTime) || 0,
+    unanswered: (result && result.unanswered) || 0,
+  }
+}
+
+/**
+ * DISC логиста: группы и теоретический диапазон — из «Офиса» (6 зачётных,
+ * −6…+12), но ОЦЕНОЧНЫЙ: целевые зоны C/D/S/I + мягкая проверка порядка
+ * доминант (ведущая не C → «профиль смещён», −25% к DISC-баллу, не провал).
+ */
+export function calcDiscLogist(answers, discConfig, targets, order) {
+  const base = calcDiscBasic(answers || [], discConfig)
+  const norm = { D: base.normD, I: base.normI, S: base.normS, C: base.normC }
+  const flags = []
+
+  const inZone = function (k) { return norm[k] >= targets[k].min && norm[k] <= targets[k].max }
+  const targetMatch = { C: inZone('C'), D: inZone('D'), S: inZone('S'), I: inZone('I') }
+  const zoneHits = ['C', 'D', 'S', 'I'].filter(function (k) { return targetMatch[k] }).length
+
+  let dominantOrderOk = true
+  if (order && order.primary) {
+    dominantOrderOk = base.primary === order.primary
+    if (!dominantOrderOk && order.demoteIfPrimary && order.demoteIfPrimary.indexOf(base.primary) >= 0) {
+      flags.push('disc_profile_shifted')
+    }
+  }
+  if (!base.trapsConsistent) flags.push('disc_traps_mismatch')
+
+  let discScore = (zoneHits / 4) * 100
+  if (!dominantOrderOk) discScore = discScore * 0.75   // мягкий −25%
+
+  return Object.assign({}, base, {
+    targetMatch: targetMatch,
+    zoneHits: zoneHits,
+    inTargetZone: zoneHits === 4,
+    dominantOrderOk: dominantOrderOk,
+    discScore: Math.round(discScore),
+    flags: flags,
+  })
+}
+
+/**
+ * Кейс, часть 1 — план заказа. Проверяет код по скрытому ключу (диапазон min..max).
+ * Комментарий к плану — один AI-критерий на бэкенде, здесь не оценивается.
+ */
+export function calcOrderPlanLogist(planAnswers, plan) {
+  const qty = (planAnswers && planAnswers.qty) || {}
+  let score = 0
+  let max = 0
+  const details = []
+  plan.rows.forEach(function (r) {
+    const k = plan.key[r.id]
+    max += k.points
+    const v = qty[r.id]
+    const ok = typeof v === 'number' && v >= k.min && v <= k.max
+    if (ok) score += k.points
+    details.push({ id: r.id, value: v, ok: ok, expected: k.min === k.max ? String(k.min) : k.min + '–' + k.max })
+  })
+  return {
+    score: score,
+    max: max,
+    pct: max > 0 ? Math.round((score / max) * 100) : 0,
+    details: details,
+    // Ловушки C (товар в пути) и E (срок годности) — отдельный сигнал для HR
+    trapC: details.filter(function (d) { return d.id === 'C' })[0].ok,
+    trapE: details.filter(function (d) { return d.id === 'E' })[0].ok,
+    comment: (planAnswers && planAnswers.comment) || '',
+  }
+}
+
+/**
+ * Итог логиста. Визуал и кейс ч.2–3 оцениваются AI на бэкенде, поэтому здесь
+ * Итог ПРЕДВАРИТЕЛЬНЫЙ: взвешен только по детерминированным частям
+ * (когнитивный, банк, DISC, план заказа) и нормирован на их суммарный вес.
+ * Эвристика по длине текста НЕ используется (стандарт платформы).
+ * Финальный Итог пересчитывает бэкенд после «Оценить кейсы (AI)».
+ *
+ * Гейты:
+ *   - базовый тир когнитивного < 7 из 10 → жёсткий: Итог 0, ранг D;
+ *   - knockout в банке ≥ 2 → critical_red: ранг D, Итог не обнуляется.
+ */
+export function calcOverallLogist({ cog, bank, disc, plan, role }) {
+  const w = role.weights
+  const partW = role.questions.CASE_PART_WEIGHTS
+  const gates = role.gates
+  const flags = disc.flags.slice()
+  const reasons = []
+
+  const cogGated = !cog.gatePassed
+  if (cogGated) reasons.push(cog.gateReason)
+
+  const koCount = bank.knockouts.length
+  const koRed = koCount >= gates.knockout_red
+  if (koRed) {
+    flags.push('knockout_red')
+    reasons.push('Knockout-ответов в ролевом банке: ' + koCount)
+  } else if (koCount > 0) {
+    flags.push('knockout_yellow')
+  }
+
+  if (cog.ceiling === (role.questions.COGNITIVE_CONFIG.ceilingLabels || {}).t1) flags.push('cog_level_base')
+  if (!cog.timeOk) flags.push('cog_timeout')
+  if (!bank.timeOk) flags.push('bank_timeout')
+
+  const planW = w.case * partW.plan
+  const knownWeight = w.cognitive + w.bank + w.disc + planW
+  const weighted =
+    cog.pct * w.cognitive +
+    bank.pct * w.bank +
+    disc.discScore * w.disc +
+    plan.pct * planW
+  const preliminary = Math.round(weighted / knownWeight)
+
+  const overall_pct = cogGated ? 0 : preliminary
+  let rank = 'D'
+  if (!cogGated && !koRed) {
+    if (overall_pct >= role.ranks.A) rank = 'A'
+    else if (overall_pct >= role.ranks.B) rank = 'B'
+    else if (overall_pct >= role.ranks.C) rank = 'C'
+  }
+
+  return {
+    overall_pct: overall_pct,
+    rank: rank,
+    gated: cogGated || koRed,
+    gateReason: reasons.join('; '),
+    flags: flags,
+    status: 'предварительный: без визуала и кейса ч.2–3 (до AI-оценки)',
+    breakdown: {
+      cognitive: cog.pct,
+      bank: bank.pct,
+      disc: disc.discScore,
+      plan: plan.pct,
+      visual: null,
+      discrepancy: null,
+      defect: null,
+    },
+  }
+}
+
+/**
+ * Payload логиста для Google Sheets. Сырой ответ первичен.
+ * Счёты с малым знаменателем — текстом «X из Y» (иначе Sheets превращает в дату).
+ */
+export function buildPayloadLogist({
+  name, role,
+  cogResult, bankResult, discResult, visResult, planResult,
+  discrepancyAnswers, defectAnswers,
+  overallResult,
+}) {
+  const comp = bankResult.byComp
+  const compText = Object.keys(comp).map(function (k) {
+    return comp[k].label + ': ' + comp[k].score + ' из ' + comp[k].max
+  }).join('; ')
+  const koText = bankResult.knockouts.map(function (k) {
+    return k.id + ' — ' + k.option + ': ' + k.text
+  }).join('\n')
+  const planText = planResult.details.map(function (d) {
+    return d.id + ': ' + (d.value === undefined ? '—' : d.value) + (d.ok ? ' ✓' : ' ✗ (эталон ' + d.expected + ')')
+  }).join('; ')
+
+  return {
+    candidate_name: name,
+    lang: 'ru',
+    role: role.sheetName,
+    consent: 'да',
+    consent_at: new Date().toISOString(),
+
+    // Блок 1 — когнитивный по тирам (те же поля, что у «Офиса»)
+    cog_score: cogResult.score,
+    cog_max: cogResult.max,
+    cog_pct: cogResult.pct,
+    cog_t1: cogResult.tiers.t1.score, cog_t1_max: cogResult.tiers.t1.max,
+    cog_t2: cogResult.tiers.t2.score, cog_t2_max: cogResult.tiers.t2.max,
+    cog_t3: cogResult.tiers.t3.score, cog_t3_max: cogResult.tiers.t3.max,
+    cog_level: cogResult.ceiling,
+    cog_unanswered: cogResult.unanswered,
+    cog_time_sec: cogResult.timeSec,
+    raw_cog: cogResult,
+
+    // Блок 2 — ролевой банк
+    bank_score: bankResult.score + ' из ' + bankResult.max,
+    bank_pct: bankResult.pct,
+    bank_by_comp: compText,
+    bank_knockouts: bankResult.knockouts.length,
+    bank_knockout_list: koText,
+    bank_bonus: bankResult.bonusScore + ' из ' + bankResult.bonusMax,
+    bank_time_sec: bankResult.timeSec,
+    bank_unanswered: bankResult.unanswered,
+    raw_bank: bankResult,
+
+    // Блок 3 — DISC (оценочный)
+    disc_d: discResult.d, disc_i: discResult.i, disc_s: discResult.s, disc_c: discResult.c,
+    disc_normD: discResult.normD, disc_normI: discResult.normI,
+    disc_normS: discResult.normS, disc_normC: discResult.normC,
+    disc_primary: discResult.primary, disc_secondary: discResult.secondary,
+    disc_target_match: discResult.inTargetZone,
+    disc_zone_hits: discResult.zoneHits + ' из 4',
+    disc_order_ok: discResult.dominantOrderOk,
+    disc_score: discResult.discScore,
+    disc_flags: discResult.flags.join(','),
+
+    // Блок 4 — визуал (примечания + скрытый эталон для AI-сверки)
+    vis_observation_count: visResult.observationCount,
+    vis_total_count: visResult.totalViolations,
+    vis_observations: visResult.observations,
+    vis_ground_truth: visResult.groundTruth,
+    vis_ai_eval: 'PENDING',
+    raw_vis_marks: visResult.rawMarks,
+
+    // Блок 5 — кейс
+    plan_qty: planResult.details.reduce(function (acc, d) { acc[d.id] = d.value; return acc }, {}),
+    plan_result: planText,
+    plan_score: planResult.score + ' из ' + planResult.max,
+    plan_pct: planResult.pct,
+    plan_trap_c: planResult.trapC,
+    plan_trap_e: planResult.trapE,
+    plan_comment: planResult.comment,
+    case_discrepancy: (discrepancyAnswers && discrepancyAnswers.answer) || '',
+    case_defect_ru: (defectAnswers && defectAnswers.actions_ru) || '',
+    case_defect_en: (defectAnswers && defectAnswers.reply_en) || '',
+    case_ai_eval: 'PENDING',
+
+    // Итог (предварительный до AI-оценки визуала и кейса ч.2–3)
+    overall_pct: overallResult.overall_pct,
+    overall_status: overallResult.status,
+    rank: overallResult.rank,
+    gated: overallResult.gated,
+    gate_reason: overallResult.gateReason || '',
+    flags: overallResult.flags.join(','),
+    breakdown: overallResult.breakdown,
+  }
+}
