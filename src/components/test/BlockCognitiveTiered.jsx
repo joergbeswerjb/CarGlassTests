@@ -99,7 +99,7 @@ export default function BlockCognitiveTiered({ bank, config, savedState, onCompl
     <div style={{ padding: '1rem', maxWidth: 680, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <p style={{ fontSize: 13, color: B.muted, margin: 0 }}>
-          Блок 1 из 2 · Вопрос {currentIdx + 1} из {questions.length}
+          {config.blockLabel || 'Блок 1 из 2'} · Вопрос {currentIdx + 1} из {questions.length}
         </p>
         <p style={{ fontSize: 13, color: timerColor, fontWeight: 600, margin: 0 }}>
           Осталось на блок: {minutes}:{seconds}

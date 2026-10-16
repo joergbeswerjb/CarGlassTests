@@ -58,6 +58,41 @@ export default function BlockStructured({ caseData, savedAnswers, onComplete }) 
         {caseData.message}
       </div>
 
+      {/* Опциональная таблица к вводным (caseData.table: { head, rows }) */}
+      {caseData.table && (
+        <div style={{ overflowX: 'auto', marginTop: -12, marginBottom: 24 }}>
+          <table style={{
+            borderCollapse: 'collapse', width: '100%',
+            background: B.white, border: `1px solid ${B.border}`,
+          }}>
+            <thead>
+              <tr>
+                {caseData.table.head.map((h, i) => (
+                  <th key={i} style={{
+                    textAlign: 'left', padding: '7px 9px', background: B.light,
+                    borderBottom: `1px solid ${B.border}`, color: B.muted,
+                    fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap',
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {caseData.table.rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((c, ci) => (
+                    <td key={ci} style={{
+                      padding: '7px 9px', borderBottom: `1px solid ${B.border}`,
+                      color: B.text, fontSize: 13, lineHeight: 1.4,
+                      whiteSpace: ci === r.length - 1 ? 'normal' : 'nowrap',
+                    }}>{c}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20, color: B.text }}>
         {caseData.introBeforeFields}
       </p>
