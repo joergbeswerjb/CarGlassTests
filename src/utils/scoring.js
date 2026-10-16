@@ -1037,7 +1037,8 @@ export function calcOrderPlanLogist(planAnswers, plan) {
  *
  * Гейты:
  *   - базовый тир когнитивного < 7 из 10 → жёсткий: Итог 0, ранг D;
- *   - knockout в банке ≥ 2 → critical_red: ранг D, Итог не обнуляется.
+ *   - knockout в банке = 2 → ранг не выше C (фокус интервью), Итог не обнуляется;
+ *   - knockout в банке ≥ 3 → ранг D, Итог не обнуляется.
  */
 export function calcOverallLogist({ cog, bank, disc, plan, role }) {
   const w = role.weights
@@ -1051,9 +1052,13 @@ export function calcOverallLogist({ cog, bank, disc, plan, role }) {
 
   const koCount = bank.knockouts.length
   const koRed = koCount >= gates.knockout_red
+  const koCap = !koRed && koCount >= gates.knockout_cap
   if (koRed) {
     flags.push('knockout_red')
-    reasons.push('Knockout-ответов в ролевом банке: ' + koCount)
+    reasons.push('Knockout-ответов в ролевом банке: ' + koCount + ' → ранг D')
+  } else if (koCap) {
+    flags.push('knockout_cap')
+    reasons.push('Knockout-ответов: ' + koCount + ' → ранг не выше ' + gates.knockout_cap_rank + ', фокус интервью: рамки полномочий')
   } else if (koCount > 0) {
     flags.push('knockout_yellow')
   }
@@ -1078,6 +1083,9 @@ export function calcOverallLogist({ cog, bank, disc, plan, role }) {
     else if (overall_pct >= role.ranks.B) rank = 'B'
     else if (overall_pct >= role.ranks.C) rank = 'C'
   }
+  // Ограничение ранга при 2 knockout: не выше cap (по умолчанию C)
+  const ORDER = ['A', 'B', 'C', 'D']
+  if (koCap && ORDER.indexOf(rank) < ORDER.indexOf(gates.knockout_cap_rank)) rank = gates.knockout_cap_rank
 
   return {
     overall_pct: overall_pct,
